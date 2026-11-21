@@ -74,6 +74,7 @@ Backend vero, dati scaricati con `make ingest` (44 serie verdi su 45, XLE senza 
 
 - **Ripiego con chiave non valida:** 401 da `api.anthropic.com` → risponde il cervello dimostrativo e `cervello_errore` lo segnala. L'host è raggiungibile dalla rete dell'ambiente.
 - **Corretto:** con il database vuoto (container nuovo) oro e liquidità andavano in errore e il regime dava il testo di ripiego. Ora Jarvis dice che mancano i dati e di lanciare `make ingest` (test `test_demo_empty_database_says_data_is_missing`).
+- **Script di avvio dell'ambiente:** ora lancia anche l'ingest (log in `/tmp/ingest.log`; se fallisce la sessione parte lo stesso).
 - **Da fare:** collaudo del cervello Claude con la chiave vera. La variabile `ANTHROPIC_API_KEY` è nell'ambiente `royaumoney` ma una sessione la legge solo se nasce dopo che è stata aggiunta.
 
 ## Note sui dati mostrati

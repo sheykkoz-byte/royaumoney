@@ -74,7 +74,7 @@ def daily_from_hourly(hourly: pd.DataFrame) -> pd.DataFrame:
         return hourly
     session = (hourly.index + NY_CLOSE_SHIFT).normalize()
     h = hourly.assign(session=session)
-    h = h[h["session"].dt.weekday < 5]  # Friday 17:00 → Sunday 17:00 is the weekend
+    h = h[h["session"].dt.day_of_week < 5]  # Friday 17:00 → Sunday 17:00 is the weekend
     out = h.groupby("session").agg(open=("open", "first"), high=("high", "max"),
                                    low=("low", "min"), close=("close", "last"))
     out.index.name = None
