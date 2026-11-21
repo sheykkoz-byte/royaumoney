@@ -77,6 +77,16 @@ Backend vero, dati scaricati con `make ingest` (44 serie verdi su 45, XLE senza 
 - **Script di avvio dell'ambiente:** ora lancia anche l'ingest (log in `/tmp/ingest.log`; se fallisce la sessione parte lo stesso).
 - **Da fare:** collaudo del cervello Claude con la chiave vera. La variabile `ANTHROPIC_API_KEY` è nell'ambiente `royaumoney` ma una sessione la legge solo se nasce dopo che è stata aggiunta.
 
+## Artefatto (pagina da provare senza backend)
+
+`frontend/artifact/`: l'interfaccia vera (sfera, grafici, schede, voce) impacchettata in un'unica pagina. Una finta WebSocket (`fake-ws.ts`) risponde con le risposte registrate dal backend (`record.py`: una per intento del cervello dimostrativo, con audio ElevenLabs) e smista le domande con le stesse regole di `demo.INTENTS`. Il microfono non funziona dentro l'artefatto: si scrive o si usano i pulsanti.
+
+Per rigenerarla con dati nuovi (backend acceso su :8000):
+
+```bash
+frontend/artifact/build.sh /percorso/uscita
+```
+
 ## Note sui dati mostrati
 
 - L'oro nel grafico è il **future COMEX continuo** (`GC=F`) su prezzi di **chiusura**: il "massimo storico" è quello di chiusura (5.318), non il massimo intraday spot (5.598,75). La verifica delle previsioni invece usa lo spot vero di Twelve Data.
