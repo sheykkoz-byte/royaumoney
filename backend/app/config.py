@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     fred_api_key: str = ""
     anthropic_api_key: str = ""
     elevenlabs_api_key: str = ""
+    twelvedata_api_key: str = ""  # optional in the cloud: the proxy injects it
 
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'royaumoney.db'}"
     # First date downloaded on a full backfill. Five years of z-score window

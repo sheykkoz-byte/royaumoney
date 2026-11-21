@@ -35,18 +35,33 @@ Con un massimo e un minimo al giorno non si sa in che ordine sono avvenute le co
 
 ## Strumento di verifica per l'oro
 
-Yahoo non ha più lo spot XAU/USD, e il future continuo `GC=F` salta di circa 30 $ quando passa al contratto successivo. Per questo lo spot si **stima** dai due contratti COMEX più vicini, togliendo il costo di mantenimento implicito nel loro spread:
+Dal 21/11/2026 l'oro si verifica sullo **spot vero XAU/USD di Twelve Data** (strumento `XAUUSD_SPOT`), con apertura, massimo, minimo e chiusura giornalieri e **nessuno scarto fisso**. La chiave si salva come credenziale dell'ambiente cloud, oppure come `TWELVEDATA_API_KEY` nel `.env` locale. Se i prezzi non sono disponibili la verifica lo segnala e, quando tornano, recupera i giorni mancanti dallo storico.
 
-```
-carry = ln(F_successivo / F_vicino) / (anni tra le due scadenze)
-spot  ≈ F_vicino · exp(−carry · anni alla scadenza del vicino)
-```
+Le fonti scartate:
+- `GC=F` (Yahoo) salta di circa 30 $ al cambio di contratto;
+- la stima dello spot dai future COMEX (`XAUUSD_EST`, costo di mantenimento) differiva di circa 18 $ dalle quotazioni del broker, uno scarto che andrebbe ricalcolato ogni giorno;
+- Stooq ora richiede una verifica anti-bot da browser.
 
-Il calcolo vale per apertura, massimo, minimo e chiusura. Il contratto "vicino" cambia 3 giorni lavorativi prima del suo first notice day.
+La stima dai future resta nel codice solo per P-0001, che è stata annullata.
 
-**Allineamento (`align_to_entry`)**: le tue quotazioni (broker) e lo spot stimato differiscono di uno scarto quasi costante. Il 20/11/2026 la chiusura stimata era 3.519,43, contro il tuo 3.537,87: **+18,44 $**. Il minimo stimato più lo scarto fa 3.502, dove hai visto il prezzo fermarsi sulla linea a 3.498: lo scarto è coerente. Con `align_to_entry` lo scarto viene misurato alla registrazione, salvato e aggiunto a tutti i prezzi di verifica. Se lo scarto supera il 2% la registrazione viene rifiutata.
+## Annullamento
 
-Per lo spot vero servirebbe un fornitore come Twelve Data (chiave gratuita, XAU/USD): si aggiunge come nuovo strumento in `backend/app/predictions/service.py`.
+Una previsione si può **ritirare solo prima che esista un qualsiasi prezzo successivo alla registrazione** (`previsioni annulla P-xxxx --motivo …`). Dopo, si può solo chiudere come colpita, invalidata o scaduta. L'annullamento:
+- viene scritto in `registro/P-xxxx.annullamento.json` con motivo e sostituta;
+- compare nel diario della previsione;
+- esclude la previsione dalle statistiche, che riportano comunque quante previsioni sono state annullate.
+
+Esempio: P-0001 è stata annullata il 21/11/2026, prima dell'apertura dei mercati, e sostituita da P-0002 (fase 2 entro il 31/12/2026, probabilità 55%, spot vero).
+
+## Verifica giornaliera nel cloud
+
+Un'attività pianificata (ogni sera alle 23:37, ora di Roma) apre una sessione cloud nuova sull'ambiente `royaumoney`. Lì esegue `uv run python -m app.cli previsioni ciclo`, che:
+1. ricostruisce il registro da `registro/*.json`;
+2. ricarica i prezzi già salvati in `registro/prezzi/`;
+3. scarica i prezzi nuovi;
+4. verifica e scrive `registro/stato/P-xxxx.json`, `registro/prezzi/*.csv` e `registro/track-record.json`.
+
+Poi fa commit e push. Se lo scaricamento dei prezzi fallisce, il comando esce con errore e non viene fatto nessun commit.
 
 ## Statistiche (track record)
 
@@ -64,6 +79,7 @@ make previsione ID=P-0001       # dettaglio con diario degli eventi
 make previsioni-verifica        # verifica adesso (lo fa anche il job delle 07:15 e 23:15)
 make track-record               # statistiche
 make previsioni-importa         # ricostruisce il database da registro/
+cd backend && uv run python -m app.cli previsioni ciclo     # il ciclo giornaliero completo
 ```
 
 Per registrare una previsione nuova: scrivi un file JSON come `backend/seeds/previsioni/2026-11-21-oro.json` e lancia `cd backend && uv run python -m app.cli previsioni add percorso/file.json`. In alternativa usa `POST /previsioni` (è lo stesso che userà Jarvis in Fase 4).

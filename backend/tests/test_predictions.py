@@ -218,7 +218,7 @@ def test_create_freezes_spec_and_verify_logs_events(session, monkeypatch, tmp_pa
 
     monkeypatch.setattr(service, "refresh_bars", lambda *a, **k: 0)
     for d, (h, lo, c) in flat("2026-11-16", "2026-11-27", close=3519.43, spread=10).items():
-        session.add(Bar(instrument="XAUUSD_EST", date=date.fromisoformat(d), open=c, high=h,
+        session.add(Bar(instrument="XAUUSD_SPOT", date=date.fromisoformat(d), open=c, high=h,
                         low=lo, close=c, source="test", fetched_at=datetime(2026, 11, 21)))
     session.flush()
     monkeypatch.setattr(service, "ledger_dir", lambda: tmp_path)
@@ -250,7 +250,7 @@ def test_align_refuses_entry_far_from_instrument(session, monkeypatch, tmp_path)
     from app.predictions import service
 
     monkeypatch.setattr(service, "refresh_bars", lambda *a, **k: 0)
-    session.add(Bar(instrument="XAUUSD_EST", date=date(2026, 11, 20), open=3000, high=3000,
+    session.add(Bar(instrument="XAUUSD_SPOT", date=date(2026, 11, 20), open=3000, high=3000,
                     low=3000, close=3000, source="test", fetched_at=datetime(2026, 11, 21)))
     session.flush()
     monkeypatch.setattr(service, "ledger_dir", lambda: tmp_path)
@@ -282,3 +282,84 @@ def test_ledger_round_trip_keeps_id_and_date(session, monkeypatch, tmp_path):
         Base.metadata.create_all(eng)
         with pytest.raises(RuntimeError):
             service.import_ledger(other)
+
+
+def test_annul_only_before_any_later_price(session, monkeypatch, tmp_path):
+    from app.db import Bar
+    from app.predictions import service
+    from app.predictions.stats import track_record
+
+    monkeypatch.setattr(service, "ledger_dir", lambda: tmp_path)
+    p = service.create(session, spec(align_to_entry=False), now=datetime(2026, 11, 21, 10))
+    q = service.create(session, spec(align_to_entry=False), now=datetime(2026, 11, 21, 11))
+    service.annul(session, p.id, "date corrette", replaced_by=q.id,
+                  now=datetime(2026, 11, 21, 12))
+    assert p.status == "annullata"
+    assert (tmp_path / "P-0001.annullamento.json").exists()
+    tr = track_record(session)
+    assert tr["annulled"] == 1 and tr["overall"]["total"] == 1
+
+    # Once a price after creation exists, annulling is refused
+    session.add(Bar(instrument="XAUUSD_SPOT", date=date(2026, 11, 23), open=1, high=1, low=1,
+                    close=1, source="test", fetched_at=datetime(2026, 11, 23)))
+    session.flush()
+    with pytest.raises(ValueError, match="no longer"):
+        service.annul(session, q.id, "ci ho ripensato")
+
+
+def test_ledger_import_applies_annulments(session, monkeypatch, tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from app.db import Base, Prediction
+    from app.predictions import service
+
+    monkeypatch.setattr(service, "ledger_dir", lambda: tmp_path)
+    p = service.create(session, spec(align_to_entry=False), now=datetime(2026, 11, 21, 10))
+    service.annul(session, p.id, "prova", now=datetime(2026, 11, 21, 12))
+    eng = create_engine("sqlite://")
+    Base.metadata.create_all(eng)
+    with Session(eng) as fresh:
+        service.import_ledger(fresh)
+        assert fresh.get(Prediction, "P-0001").status == "annullata"
+
+
+def test_twelvedata_parse():
+    from app.sources.twelvedata import parse
+
+    df = parse({"values": [
+        {"datetime": "2026-11-20", "open": "3600", "high": "3610", "low": "3498.1",
+         "close": "3537.87"},
+        {"datetime": "2026-11-19", "open": "3650", "high": "3700", "low": "3590",
+         "close": "3600"}], "status": "ok"})
+    assert list(df.index.strftime("%Y-%m-%d")) == ["2026-11-19", "2026-11-20"]
+    assert df.loc["2026-11-20", "close"] == 3537.87
+    assert parse({"values": []}).empty
+
+
+def test_daily_cycle_rebuilds_from_ledger_and_writes_state(session, monkeypatch, tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from app.db import Bar, Base
+    from app.predictions import service
+
+    monkeypatch.setattr(service, "ledger_dir", lambda: tmp_path)
+    monkeypatch.setattr(service, "refresh_bars", lambda *a, **k: 0)
+    service.create(session, spec(align_to_entry=False), now=datetime(2026, 11, 21, 10))
+    for d, (h, lo, c) in flat("2026-11-23", "2026-11-27").items():
+        session.add(Bar(instrument="XAUUSD_SPOT", date=date.fromisoformat(d), open=c, high=h,
+                        low=lo, close=c, source="test", fetched_at=datetime(2026, 11, 28)))
+    session.flush()
+    service.export_state(session, date(2026, 11, 28))
+    assert (tmp_path / "prezzi" / "XAUUSD_SPOT.csv").exists()
+
+    # A brand-new database (as in the cloud job) gets everything back from the ledger dir
+    eng = create_engine("sqlite://")
+    Base.metadata.create_all(eng)
+    with Session(eng) as fresh:
+        report = service.daily_cycle(fresh, date(2026, 11, 28))
+        assert report[0]["status"] == "aperta" and report[0]["last_bar"] == date(2026, 11, 27)
+    state = json.loads((tmp_path / "stato" / "P-0001.json").read_text(encoding="utf-8"))
+    assert state["status"] == "aperta" and state["last_bar_date"] == "2026-11-27"
+    assert json.loads((tmp_path / "track-record.json").read_text())["as_of"] == "2026-11-28"

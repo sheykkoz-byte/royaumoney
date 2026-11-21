@@ -1,0 +1,96 @@
+{
+  "overall": {
+    "total": 1,
+    "open": 1,
+    "resolved": 0,
+    "hit": 0,
+    "invalidated": 0,
+    "expired": 0,
+    "hit_rate": null
+  },
+  "by_asset": {
+    "XAUUSD": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    }
+  },
+  "by_author": {
+    "yousef": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    }
+  },
+  "by_horizon": {
+    "fino a 3 mesi": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    }
+  },
+  "by_event": {
+    "cpi": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    },
+    "fed": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    },
+    "ipotesi": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    },
+    "oro": {
+      "total": 1,
+      "open": 1,
+      "resolved": 0,
+      "hit": 0,
+      "invalidated": 0,
+      "expired": 0,
+      "hit_rate": null
+    }
+  },
+  "brier": {
+    "score": null,
+    "n": 0,
+    "reference_50_50": 0.25,
+    "note": "0 = perfetto; 0,25 = come dire sempre 50%. Contano solo le previsioni chiuse con una probabilità dichiarata."
+  },
+  "calibration": [],
+  "targets": {
+    "hit": 0,
+    "decided": 0,
+    "hit_rate": null
+  },
+  "annulled": 1,
+  "as_of": "2026-11-21"
+}

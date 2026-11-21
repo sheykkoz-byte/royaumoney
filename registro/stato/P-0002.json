@@ -1,0 +1,88 @@
+{
+  "id": "P-0002",
+  "title": "Oro: rimbalzo fino alla Fed, presa di liquidità sotto 3.498, ripartenza a gennaio",
+  "author": "yousef",
+  "asset": "XAUUSD",
+  "instrument": "XAUUSD_SPOT",
+  "instrument_label": "Spot XAU/USD (Twelve Data)",
+  "annulment": null,
+  "created_at": "2026-11-21T01:53:23",
+  "direction": "path",
+  "entry_price": 3537.87,
+  "probability": 0.55,
+  "horizon_end": "2027-01-31",
+  "scenario": "Fed 9/12 + CPI 10/12: rialzo dei tassi quasi scontato; decidono dot plot e tono di Powell",
+  "reasoning": "Ipotesi di scenario di Yousef, non un consiglio operativo. Chiusura settimanale a 3.537,87, circa il 37% sotto il massimo storico di 5.598,75 (29/01/2026). Il prezzo si è fermato sulla linea a 3.498, l'ombra massima della congestione del 2025. Fino alla Fed il prezzo colma l'inefficienza lasciata dal crollo (rimbalzo verso 3.720–3.760). Dopo Fed e CPI, spinta ribassista per prendere la liquidità sotto 3.498 (3.380–3.420). Da gennaio ripartenza verso 3.900–4.000. Probabilità 55%: tre fasi in sequenza, basta che una vada storta per mancare lo scenario.",
+  "tags": [
+    "oro",
+    "fed",
+    "cpi",
+    "ipotesi"
+  ],
+  "status": "aperta",
+  "resolved_on": null,
+  "targets": [
+    {
+      "label": "Fase 1 · rimbalzo",
+      "status": "attiva",
+      "trigger": 3720.0,
+      "deadline": "2026-12-09",
+      "hit_on": null,
+      "hit_price": null
+    },
+    {
+      "label": "Fase 2 · discesa subito dopo Fed e CPI",
+      "status": "in attesa",
+      "trigger": 3420.0,
+      "deadline": "2026-12-31",
+      "hit_on": null,
+      "hit_price": null
+    },
+    {
+      "label": "Fase 3 · ripartenza",
+      "status": "in attesa",
+      "trigger": 3900.0,
+      "deadline": "2027-01-31",
+      "hit_on": null,
+      "hit_price": null
+    }
+  ],
+  "invalidations": [
+    {
+      "description": "chiusura settimanale sopra 3.800 prima della Fed",
+      "kind": "weekly_close_above",
+      "level": 3800.0,
+      "triggered_on": null,
+      "price": null
+    },
+    {
+      "description": "chiusura settimanale sotto 3.300",
+      "kind": "weekly_close_below",
+      "level": 3300.0,
+      "triggered_on": null,
+      "price": null
+    }
+  ],
+  "extremes": {},
+  "last_bar_date": null,
+  "instrument_offset": 0.0,
+  "context": {
+    "regime": "Liquidità in espansione · Reflazione",
+    "regime_key": "liq_up_reflazione",
+    "verdict": "Nessuno scenario prevale: i dati sono contrastanti (Stagflazione, Recessione e Reflazione quasi alla pari). Il più forte ha punteggio 9.",
+    "regime_scenarios": {
+      "stagflation": 9,
+      "recession": 9,
+      "reflation": 0,
+      "soft_landing": -29
+    }
+  },
+  "spec_hash": "8b403db12d6fa475f0952ab23f8949a5163f91a9b580091dfda2b9d11e80b108",
+  "events": [
+    {
+      "date": "2026-11-21",
+      "kind": "created",
+      "message": "Previsione registrata: Oro: rimbalzo fino alla Fed, presa di liquidità sotto 3.498, ripartenza a gennaio."
+    }
+  ]
+}

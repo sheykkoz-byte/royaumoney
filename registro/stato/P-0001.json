@@ -1,0 +1,96 @@
+{
+  "id": "P-0001",
+  "title": "Oro: rimbalzo fino alla Fed, presa di liquidità sotto 3.498, ripartenza a gennaio",
+  "author": "yousef",
+  "asset": "XAUUSD",
+  "instrument": "XAUUSD_EST",
+  "instrument_label": "Spot XAU/USD stimato dai future COMEX (costo di mantenimento)",
+  "annulment": {
+    "at": "2026-11-21T01:54:44Z",
+    "reason": "Registrata con la fase 2 fino al 31/01/2027 e senza probabilità; l'autore la corregge prima di qualsiasi prezzo successivo (fase 2 entro il 31/12/2026, probabilità 55%) e la verifica passa allo spot vero XAU/USD.",
+    "replaced_by": "P-0002"
+  },
+  "created_at": "2026-11-21T01:31:40",
+  "direction": "path",
+  "entry_price": 3537.87,
+  "probability": null,
+  "horizon_end": "2027-01-31",
+  "scenario": "Fed 9/12 + CPI 10/12: rialzo dei tassi quasi scontato; decidono dot plot e tono di Powell",
+  "reasoning": "Chiusura settimanale a 3.537,87, circa il 37% sotto il massimo storico di 5.598,75 (29/01/2026). Il prezzo si è fermato sulla linea a 3.498, l'ombra massima della congestione del 2025. Fino alla Fed il prezzo colma l'inefficienza lasciata dal crollo (rimbalzo verso 3.720–3.760). Dopo Fed e CPI, spinta ribassista per prendere la liquidità sotto 3.498 (3.380–3.420). Da gennaio ripartenza verso 3.900–4.000.",
+  "tags": [
+    "oro",
+    "fed",
+    "cpi"
+  ],
+  "status": "annullata",
+  "resolved_on": "2026-11-21",
+  "targets": [
+    {
+      "label": "Fase 1 · rimbalzo",
+      "status": "attiva",
+      "trigger": 3720.0,
+      "deadline": "2026-12-09",
+      "hit_on": null,
+      "hit_price": null
+    },
+    {
+      "label": "Fase 2 · discesa dopo Fed e CPI",
+      "status": "in attesa",
+      "trigger": 3420.0,
+      "deadline": "2027-01-31",
+      "hit_on": null,
+      "hit_price": null
+    },
+    {
+      "label": "Fase 3 · ripartenza",
+      "status": "in attesa",
+      "trigger": 3900.0,
+      "deadline": "2027-01-31",
+      "hit_on": null,
+      "hit_price": null
+    }
+  ],
+  "invalidations": [
+    {
+      "description": "chiusura settimanale sopra 3.800 prima della Fed",
+      "kind": "weekly_close_above",
+      "level": 3800.0,
+      "triggered_on": null,
+      "price": null
+    },
+    {
+      "description": "chiusura settimanale sotto 3.300",
+      "kind": "weekly_close_below",
+      "level": 3300.0,
+      "triggered_on": null,
+      "price": null
+    }
+  ],
+  "extremes": {},
+  "last_bar_date": null,
+  "instrument_offset": 18.44,
+  "context": {
+    "regime": "Liquidità in espansione · Reflazione",
+    "regime_key": "liq_up_reflazione",
+    "verdict": "Nessuno scenario prevale: i dati sono contrastanti (Stagflazione e Recessione e Reflazione quasi alla pari). Il più forte ha punteggio 9.",
+    "regime_scenarios": {
+      "stagflation": 9,
+      "recession": 9,
+      "reflation": 0,
+      "soft_landing": -29
+    }
+  },
+  "spec_hash": "b81bdb3dc1d0c530cfa251fb11df75959f99b8d905213adf0e1f2db8e266db8c",
+  "events": [
+    {
+      "date": "2026-11-21",
+      "kind": "created",
+      "message": "Previsione registrata: Oro: rimbalzo fino alla Fed, presa di liquidità sotto 3.498, ripartenza a gennaio."
+    },
+    {
+      "date": "2026-11-21",
+      "kind": "annulled",
+      "message": "Previsione annullata prima di qualsiasi prezzo successivo: Registrata con la fase 2 fino al 31/01/2027 e senza probabilità; l'autore la corregge prima di qualsiasi prezzo successivo (fase 2 entro il 31/12/2026, probabilità 55%) e la verifica passa allo spot vero XAU/USD. Sostituita da P-0002."
+    }
+  ]
+}

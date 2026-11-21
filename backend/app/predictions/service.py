@@ -20,9 +20,13 @@ log = logging.getLogger(__name__)
 # Asset → how we price it. Anything else is treated as a Yahoo ticker (stocks, ETFs).
 INSTRUMENTS = {
     "XAUUSD": {
-        "instrument": "XAUUSD_EST",
-        "label": "Spot XAU/USD stimato dai future COMEX (costo di mantenimento)",
+        "instrument": "XAUUSD_SPOT",
+        "label": "Spot XAU/USD (Twelve Data)",
     },
+}
+# Instruments that exist only for older predictions.
+LEGACY_LABELS = {
+    "XAUUSD_EST": "Spot XAU/USD stimato dai future COMEX (costo di mantenimento)",
 }
 BAR_LOOKBACK_DAYS = 10
 
@@ -62,6 +66,12 @@ def _upsert_bars(session: Session, instrument: str, df: pd.DataFrame, source: st
 
 def refresh_bars(session: Session, instrument: str, start: date, end: date | None = None) -> int:
     end = end or date.today()
+    if instrument == "XAUUSD_SPOT":
+        from app.config import get_settings
+        from app.sources import twelvedata
+
+        df = twelvedata.download_ohlc("XAU/USD", start, end, get_settings().twelvedata_api_key)
+        return _upsert_bars(session, instrument, df, "twelvedata:XAU/USD")
     if instrument == "XAUUSD_EST":
         needed = futures.contracts_needed(start, end)
         raw = download_ohlc([c.symbol for c in needed], start, end)
@@ -88,7 +98,7 @@ def _next_id(session: Session) -> str:
     ids = {p for p in session.scalars(select(Prediction.id))}
     d = ledger_dir()
     if d.exists():
-        ids |= {f.stem for f in d.glob("P-*.json")}
+        ids |= {f.stem for f in d.glob("P-[0-9][0-9][0-9][0-9].json")}
     n = max((int(i.split("-")[1]) for i in ids), default=0)
     return f"P-{n + 1:04d}"
 
@@ -172,14 +182,15 @@ def verify(session: Session, as_of: date | None = None, refresh: bool = True,
 
     for instrument, group in by_instr.items():
         start = min(p.created_at.date() for p in group) - timedelta(days=BAR_LOOKBACK_DAYS)
+        error = None
         if refresh:
             try:
                 refresh_bars(session, instrument, start, as_of)
             except Exception as e:
-                log.exception("Price refresh failed for %s", instrument)
-                for p in group:
-                    report.append({"id": p.id, "error": f"prezzi non aggiornati: {e}"})
-                continue
+                # Keep going with the prices already stored: the state is still computed,
+                # and the next successful refresh catches up (sources keep history).
+                log.warning("Price refresh failed for %s: %s", instrument, e)
+                error = f"prezzi non aggiornati: {e}"
         bars = load_bars(session, instrument, start)
         for p in group:
             spec = spec_of(p)
@@ -192,7 +203,7 @@ def verify(session: Session, as_of: date | None = None, refresh: bool = True,
                                   "extremes": res.extremes}, ensure_ascii=False)
             p.checked_at, p.last_bar_date = _now(), res.last_bar
             report.append({"id": p.id, "status": res.status, "last_bar": res.last_bar,
-                           "new_events": [e.message for e in new_events]})
+                           "new_events": [e.message for e in new_events], "error": error})
     session.flush()
     return report
 
@@ -205,7 +216,9 @@ def view(session: Session, p: Prediction, with_events: bool = True) -> dict:
     out = {
         "id": p.id, "title": p.title, "author": p.author, "asset": p.asset,
         "instrument": p.instrument,
-        "instrument_label": INSTRUMENTS.get(p.asset, {}).get("label", p.instrument),
+        "instrument_label": LEGACY_LABELS.get(
+            p.instrument, INSTRUMENTS.get(p.asset, {}).get("label", p.instrument)),
+        "annulment": ctx.get("annulment"),
         "created_at": p.created_at.isoformat(timespec="seconds"),
         "direction": p.direction, "entry_price": p.entry_price, "probability": p.probability,
         "horizon_end": p.horizon_end.isoformat(), "scenario": p.scenario,
@@ -282,7 +295,7 @@ def import_ledger(session: Session, directory=None) -> list[str]:
     """Insert ledger entries missing from the database, keeping id and creation date."""
     d = directory or ledger_dir()
     added = []
-    for f in sorted(d.glob("P-*.json")) if d.exists() else []:
+    for f in sorted(d.glob("P-[0-9][0-9][0-9][0-9].json")) if d.exists() else []:
         body = json.loads(f.read_text(encoding="utf-8"))
         if session.get(Prediction, body["id"]):
             continue
@@ -305,4 +318,117 @@ def import_ledger(session: Session, directory=None) -> list[str]:
              f"Previsione registrata: {spec.title}.", {"spec_hash": p.spec_hash,
                                                        "imported_from": f.name})
         added.append(p.id)
+    apply_ledger_annulments(session, d)
     return added
+
+
+# ---- annulment ----------------------------------------------------------------------------
+def annul(session: Session, pid: str, reason: str, replaced_by: str | None = None,
+          now: datetime | None = None) -> Prediction:
+    """Withdraw a prediction BEFORE any price after its creation exists.
+
+    Once the market has moved, a prediction can only be resolved, never withdrawn: that is
+    what keeps the track record honest. The annulment is logged and written to the ledger.
+    """
+    now = now or _now()
+    p = session.get(Prediction, pid)
+    if p is None:
+        raise ValueError(f"{pid} not found")
+    if p.status != "aperta":
+        raise ValueError(f"{pid} is {p.status}: only open predictions can be annulled")
+    later = session.scalar(select(Bar.date).where(Bar.instrument == p.instrument,
+                                                  Bar.date > p.created_at.date()).limit(1))
+    if later is not None or p.last_bar_date is not None:
+        raise ValueError(f"{pid}: prices after its creation already exist ({later}); "
+                         "it can no longer be annulled")
+    ctx = json.loads(p.context or "{}")
+    ctx["annulment"] = {"at": now.isoformat(timespec="seconds") + "Z", "reason": reason,
+                        "replaced_by": replaced_by}
+    p.context = json.dumps(ctx, ensure_ascii=False)
+    p.status, p.resolved_on = "annullata", now.date()
+    _log(session, pid, "annulled", now.date(), "annulled",
+         f"Previsione annullata prima di qualsiasi prezzo successivo: {reason}"
+         + (f" Sostituita da {replaced_by}." if replaced_by else ""),
+         ctx["annulment"])
+    write_annulment(pid, ctx["annulment"])
+    session.flush()
+    return p
+
+
+def write_annulment(pid: str, annulment: dict, directory=None) -> None:
+    d = directory or ledger_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{pid}.annullamento.json").write_text(
+        json.dumps({"id": pid, **annulment}, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8")
+
+
+def apply_ledger_annulments(session: Session, directory=None) -> list[str]:
+    d = directory or ledger_dir()
+    done = []
+    for f in sorted(d.glob("P-*.annullamento.json")) if d.exists() else []:
+        a = json.loads(f.read_text(encoding="utf-8"))
+        p = session.get(Prediction, a["id"])
+        if p is None or p.status == "annullata":
+            continue
+        ctx = json.loads(p.context or "{}")
+        ctx["annulment"] = {k: a.get(k) for k in ("at", "reason", "replaced_by")}
+        p.context = json.dumps(ctx, ensure_ascii=False)
+        p.status = "annullata"
+        p.resolved_on = datetime.fromisoformat(a["at"].rstrip("Z")).date()
+        _log(session, p.id, "annulled", p.resolved_on, "annulled",
+             f"Previsione annullata prima di qualsiasi prezzo successivo: {a['reason']}"
+             + (f" Sostituita da {a['replaced_by']}." if a.get("replaced_by") else ""),
+             ctx["annulment"])
+        done.append(p.id)
+    session.flush()
+    return done
+
+
+# ---- daily cycle (cloud job) ---------------------------------------------------------------
+def export_state(session: Session, as_of: date, directory=None) -> None:
+    """Write verification state, the prices used and the track record into the ledger dir.
+
+    Committed daily by the scheduled job: git then shows what the registry knew each day.
+    """
+    from app.predictions.stats import track_record
+
+    d = directory or ledger_dir()
+    (d / "stato").mkdir(parents=True, exist_ok=True)
+    (d / "prezzi").mkdir(parents=True, exist_ok=True)
+    instruments: dict[str, date] = {}
+    for p in session.scalars(select(Prediction).order_by(Prediction.id)):
+        v = view(session, p)
+        v.pop("checked_at", None)  # keep files stable when nothing changed
+        (d / "stato" / f"{p.id}.json").write_text(
+            json.dumps(v, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        start = p.created_at.date() - timedelta(days=BAR_LOOKBACK_DAYS)
+        instruments[p.instrument] = min(instruments.get(p.instrument, start), start)
+    for instrument, start in instruments.items():
+        bars = load_bars(session, instrument, start)
+        if not bars.empty:
+            bars.round(4).to_csv(d / "prezzi" / f"{instrument}.csv", index_label="date")
+    tr = track_record(session) | {"as_of": as_of.isoformat()}
+    (d / "track-record.json").write_text(json.dumps(tr, indent=2, ensure_ascii=False) + "\n",
+                                         encoding="utf-8")
+
+
+def import_price_files(session: Session, directory=None) -> int:
+    """Reload prices saved by earlier runs, so a failed download never loses history."""
+    d = (directory or ledger_dir()) / "prezzi"
+    n = 0
+    for f in sorted(d.glob("*.csv")) if d.exists() else []:
+        df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
+        existing = {b for b in session.scalars(select(Bar.date).where(Bar.instrument == f.stem))}
+        new = df[[x.date() not in existing for x in df.index]]
+        n += _upsert_bars(session, f.stem, new, "registro/prezzi") if len(new) else 0
+    return n
+
+
+def daily_cycle(session: Session, as_of: date | None = None) -> list[dict]:
+    as_of = as_of or date.today()
+    import_ledger(session)
+    import_price_files(session)
+    report = verify(session, as_of=as_of)
+    export_state(session, as_of)
+    return report

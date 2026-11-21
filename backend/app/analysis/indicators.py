@@ -62,30 +62,83 @@ def change_over(s: pd.Series, months: int, kind: ChangeKind) -> pd.Series:
     return s - prior
 
 
-def rolling_z(s: pd.Series, years: int, min_years: int) -> pd.Series:
-    """z-score of each point against the trailing ``years`` window (point included).
+# Robust statistics: median and MAD instead of mean and standard deviation, so a single
+# extreme episode (the 2020 Covid crash) does not flatten every normal move for the next
+# five years. 1.4826 × MAD equals the standard deviation for normally distributed data.
+ROBUST = True
+MAD_TO_STD = 1.4826
 
-    NaN until the series has ``min_years`` of history, or where the window has no spread.
+
+def _window_days(years: float) -> str:
+    return f"{int(years * 365.25)}D"
+
+
+def _stats_sample(s: pd.Series) -> pd.Series:
+    """Daily series: one value per week (last), to keep rolling medians fast."""
+    if len(s) > 3 and (s.index[1:] - s.index[:-1]).median() < pd.Timedelta(days=6):
+        return s.resample("W-FRI").last().dropna()
+    return s
+
+
+def _on_index(stat: pd.Series, index: pd.DatetimeIndex) -> pd.Series:
+    """Map window statistics back to every date (last value on or before it)."""
+    return _asof(stat.dropna(), index)
+
+
+def _robust_center_scale(s: pd.Series, years: float, demean: bool):
+    sample = _stats_sample(s)
+    win = sample.rolling(_window_days(years), min_periods=5)
+    if demean:
+        center = win.median()
+        mad = win.apply(lambda w: np.median(np.abs(w - np.median(w))), raw=True)
+        fallback = win.std()
+    else:
+        center = pd.Series(0.0, index=sample.index)
+        mad = win.apply(lambda w: np.median(np.abs(w)), raw=True)
+        fallback = np.sqrt((sample**2).rolling(_window_days(years), min_periods=5).mean())
+    scale = (MAD_TO_STD * mad).where(mad > 0, fallback)
+    if sample is s:
+        return center, scale
+    return _on_index(center, s.index), _on_index(scale, s.index)
+
+
+def _mask_short_history(out: pd.Series, s: pd.Series, min_years: float) -> pd.Series:
+    out[s.index < s.index[0] + pd.Timedelta(days=int(min_years * 365.25))] = np.nan
+    return out
+
+
+def rolling_z(s: pd.Series, years: int, min_years: int) -> pd.Series:
+    """z-score of each point against the trailing ``years`` window.
+
+    Robust version (default): (x − median) / (1.4826 · MAD). NaN until the series has
+    ``min_years`` of history, or where the window has no spread.
     """
     s = s.dropna()
     if s.empty:
         return s
-    win = s.rolling(f"{int(years * 365.25)}D", min_periods=5)
-    std = win.std()
-    z = (s - win.mean()) / std.where(std > 0)
-    z[s.index < s.index[0] + pd.Timedelta(days=int(min_years * 365.25))] = np.nan
-    return z
+    if ROBUST:
+        center, scale = _robust_center_scale(s, years, demean=True)
+    else:
+        win = s.rolling(_window_days(years), min_periods=5)
+        center, scale = win.mean(), win.std()
+    z = (s - center) / scale.where(scale > 0)
+    return _mask_short_history(z, s, min_years)
 
 
 def rolling_scaled(s: pd.Series, years: int, min_years: int) -> pd.Series:
-    """Value divided by its root mean square over the trailing window (sign preserved)."""
+    """Value divided by its typical size over the trailing window (sign preserved).
+
+    Typical size = 1.4826 · median(|x|) (robust) or root mean square.
+    """
     s = s.dropna()
     if s.empty:
         return s
-    rms = np.sqrt((s**2).rolling(f"{int(years * 365.25)}D", min_periods=5).mean())
-    out = s / rms.where(rms > 0)
-    out[s.index < s.index[0] + pd.Timedelta(days=int(min_years * 365.25))] = np.nan
-    return out
+    if ROBUST:
+        _, scale = _robust_center_scale(s, years, demean=False)
+    else:
+        scale = np.sqrt((s**2).rolling(_window_days(years), min_periods=5).mean())
+    out = s / scale.where(scale > 0)
+    return _mask_short_history(out, s, min_years)
 
 
 def _ns(x) -> pd.DatetimeIndex:

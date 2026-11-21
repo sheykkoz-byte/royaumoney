@@ -22,7 +22,7 @@ def _job() -> None:
     try:
         with session_scope() as s:
             for r in verify(s):
-                log.info("Prediction %s: %s %s", r["id"], r.get("status", r.get("error")),
+                log.info("Prediction %s: %s %s %s", r["id"], r.get("status"), r.get("error") or "",
                          "; ".join(r.get("new_events", [])))
     except Exception:
         log.exception("Prediction verification failed")

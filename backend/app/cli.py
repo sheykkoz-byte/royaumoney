@@ -87,6 +87,10 @@ def print_prediction(v: dict) -> None:
     print(f"\n{v['id']} · {v['title']}")
     print(f"  {v['asset']} ({v['instrument_label']}), ingresso {v['entry_price']}, "
           f"autore {v['author']}, registrata {v['created_at']}")
+    if v.get("annulment"):
+        a = v["annulment"]
+        print(f"  ANNULLATA il {a['at']}: {a['reason']}"
+              + (f" → sostituita da {a['replaced_by']}" if a.get("replaced_by") else ""))
     if v.get("instrument_offset"):
         print(f"  allineamento allo strumento: {v['instrument_offset']:+.2f}")
     print(f"  STATO: {v['status'].upper()}"
@@ -131,6 +135,12 @@ def main() -> None:
     ver.add_argument("--as-of", type=date.fromisoformat, default=None)
     pvs.add_parser("list", help="All predictions with their state")
     pvs.add_parser("importa", help="Load registro/*.json into the database (keeps dates)")
+    cyc = pvs.add_parser("ciclo", help="Daily job: import ledger, verify, write state")
+    cyc.add_argument("--as-of", type=date.fromisoformat, default=None)
+    ann = pvs.add_parser("annulla", help="Withdraw a prediction before any later price exists")
+    ann.add_argument("id")
+    ann.add_argument("--motivo", required=True)
+    ann.add_argument("--sostituita-da", default=None)
     show = pvs.add_parser("show", help="One prediction with its event log")
     show.add_argument("id")
     sub.add_parser("track-record", help="Hit rates and Brier score")
@@ -169,8 +179,8 @@ def main() -> None:
                 print_prediction(predictions.view(s, p))
             elif args.action == "verifica":
                 for r in predictions.verify(s, as_of=args.as_of):
-                    print(f"{r['id']}: {r.get('status', r.get('error'))} "
-                          f"(ultimo prezzo {r.get('last_bar')})")
+                    print(f"{r['id']}: {r.get('status')} (ultimo prezzo {r.get('last_bar')})"
+                          + (f" ⚠ {r['error']}" if r.get("error") else ""))
                     for m in r.get("new_events", []):
                         print(f"  · {m}")
             elif args.action == "importa":
@@ -178,6 +188,18 @@ def main() -> None:
                 print(f"Importate: {', '.join(added) or 'nessuna (già presenti)'}")
                 if added:
                     predictions.verify(s, ids=added)
+            elif args.action == "ciclo":
+                report = predictions.daily_cycle(s, args.as_of)
+                for r in report:
+                    print(f"{r['id']}: {r.get('status')} (ultimo prezzo {r.get('last_bar')})"
+                          + (f" ⚠ {r['error']}" if r.get("error") else ""))
+                    for m in r.get("new_events", []):
+                        print(f"  · {m}")
+                if any(r.get("error") for r in report):
+                    raise SystemExit(2)
+            elif args.action == "annulla":
+                p = predictions.annul(s, args.id, args.motivo, args.sostituita_da)
+                print(f"{p.id} annullata.")
             elif args.action == "list":
                 for v in predictions.list_predictions(s):
                     print(f"{v['id']}  {v['status']:<10} {v['asset']:<7} {v['title']}")

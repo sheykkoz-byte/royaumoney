@@ -21,6 +21,8 @@ Per ogni data si calcolano:
 - lo **z-score su 5 anni** del valore e di ogni variazione, cioè quanto il dato è insolito rispetto agli ultimi 5 anni. Per gli spread ICE (high yield e investment grade) la finestra è di **3 anni**, perché FRED non ne ha di più;
 - la **variazione scalata**: la variazione divisa per la sua ampiezza tipica. Non sottrae la media, quindi il segno resta quello della variazione e dice se l'indicatore sale o scende. Serve per il regime.
 
+**Statistiche robuste** (dal 21/11/2026): z-score = (valore − mediana) / (1,4826 · MAD), dove MAD è la deviazione assoluta mediana. L'ampiezza tipica delle variazioni è 1,4826 · mediana(|variazione|). Con media e deviazione standard, il crollo Covid del 2020 (disoccupazione al 14,7%, payroll −20 milioni) restava nella finestra fino al 2025 e appiattiva ogni movimento normale: a giugno 2022 le richieste di sussidio salite del 28% in 3 mesi valevano z −0,1. Per le serie giornaliere le statistiche si calcolano su un campione settimanale, solo con settimane già concluse.
+
 Ogni riga ha anche la data in cui era **conoscibile**, cioè la data di pubblicazione. L'analisi di un giorno passato usa solo i dati già pubblicati quel giorno, comprese le revisioni successive da escludere.
 
 ## 2. Regime macro
@@ -65,13 +67,22 @@ Per ogni scenario l'output elenca i dati che lo **sostengono**, quelli che lo **
 
 ## 4. Verifica sul passato
 
-Analisi rifatte con i soli dati disponibili a quelle date:
+Analisi rifatte con i soli dati disponibili a quelle date (statistiche robuste):
 
-| Data | Regime | Verdetto |
+| Data | Regime | Scenario più forte |
 |---|---|---|
-| 31/10/2008 | Liquidità in espansione · Stagflazione | **Recessione 94**: macro +2,33, mercato +1,42, convergenza 61. Allarme divergenza su "stagflazione": la macro la vedeva, il mercato no (l'inflazione poi è crollata) |
-| 30/04/2020 | Liquidità in espansione · Rallentamento disinflazionistico | **Recessione 100**: richieste di sussidio a +7,6σ |
-| 30/06/2022 | Liquidità in contrazione · Rallentamento disinflazionistico | Nessuno scenario prevale: segnali contrastanti |
+| 31/10/2008 | Liquidità in espansione · Stagflazione | **Recessione 100** |
+| 30/06/2017 | Liquidità in contrazione · Goldilocks | Atterraggio morbido 27 |
+| 30/04/2020 | Liquidità in espansione · Rallentamento disinflazionistico | **Recessione 100** |
+| 30/06/2021 | Liquidità in espansione · Reflazione | **Reflazione 65** |
+| 31/03/2022 | Liquidità in contrazione · Reflazione | **Stagflazione 50** |
+| 30/06/2022 | Liquidità in contrazione · Rallentamento disinflazionistico | nessuno (stagflazione −1) |
+
+**Il caso di giugno 2022.** Le statistiche robuste hanno corretto l'asse della crescita, che è passato da −0,07 a −0,75. La stagflazione però resta a −1, per due motivi:
+- l'asse dell'inflazione misura la **direzione**: il core PCE scendeva già (da 5,3% a 4,7% tra febbraio e maggio);
+- il mercato prezzava disinflazione: inflazione attesa a 10 anni −0,5 punti (−2σ), oro in calo.
+
+Il picco del CPI è stato proprio a giugno 2022. Resta però vero che il metodo pesa poco il **livello** dell'inflazione. Una variante in valutazione aumenta il peso del livello di CPI (da 0,5 a 1) e aggiunge il livello del core PCE (peso 0,5) nello scenario stagflazione: giugno 2022 passerebbe da −1 a +13, marzo 2022 da 50 a 60, le altre date quasi invariate.
 
 Si rifanno con `make analisi AS_OF=2008-10-31`.
 

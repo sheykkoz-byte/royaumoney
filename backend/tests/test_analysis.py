@@ -50,9 +50,41 @@ def test_rolling_z_matches_manual_calculation():
     vals = np.arange(80, dtype=float) % 7
     s = monthly(vals)["value"]
     z = rolling_z(s, years=5, min_years=3)
-    window = s[s.index > s.index[-1] - pd.Timedelta(days=int(5 * 365.25))]
-    expected = (s.iloc[-1] - window.mean()) / window.std()
-    assert z.iloc[-1] == pytest.approx(expected)
+    window = s[s.index > s.index[-1] - pd.Timedelta(days=int(5 * 365.25))].to_numpy()
+    med = np.median(window)
+    mad = np.median(np.abs(window - med))
+    assert z.iloc[-1] == pytest.approx((s.iloc[-1] - med) / (1.4826 * mad))
+
+
+def test_robust_z_is_not_flattened_by_one_extreme_episode():
+    """The 2020 problem: a crash inside the window must not hide later normal moves."""
+    rng = np.random.default_rng(3)
+    vals = rng.normal(0, 1, 72)
+    vals[30:33] = [-60, -40, 30]  # one-off shock, like payrolls in 2020
+    vals[-1] = 2.5  # a clearly unusual reading later on
+    s = monthly(vals)["value"]
+    import app.analysis.indicators as I
+
+    robust = rolling_z(s, 5, 3).iloc[-1]
+    I.ROBUST = False
+    try:
+        classic = rolling_z(s, 5, 3).iloc[-1]
+    finally:
+        I.ROBUST = True
+    assert robust > 1.8  # still reads as unusual
+    assert classic < 0.5  # the classic z-score hides it
+
+
+def test_robust_stats_on_daily_series_use_weekly_sample_without_lookahead():
+    idx = pd.bdate_range("2015-01-01", "2020-12-31")
+    s = pd.Series(np.sin(np.arange(len(idx)) / 20), index=idx)
+    z = rolling_z(s, 5, 3)
+    assert z.notna().sum() > 0
+    # Changing the last value changes only the last z: stats come from earlier weeks
+    s2 = s.copy()
+    s2.iloc[-1] = 50
+    z2 = rolling_z(s2, 5, 3)
+    assert (z2.iloc[:-1].dropna() == z.iloc[:-1].dropna()).all()
 
 
 def test_rolling_z_needs_min_history():

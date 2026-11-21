@@ -1,0 +1,54 @@
+{
+  "author": "yousef",
+  "asset": "XAUUSD",
+  "title": "Oro: rimbalzo fino alla Fed, presa di liquidità sotto 3.498, ripartenza a gennaio",
+  "direction": "path",
+  "entry_price": 3537.87,
+  "probability": 0.55,
+  "scenario": "Fed 9/12 + CPI 10/12: rialzo dei tassi quasi scontato; decidono dot plot e tono di Powell",
+  "reasoning": "Ipotesi di scenario di Yousef, non un consiglio operativo. Chiusura settimanale a 3.537,87, circa il 37% sotto il massimo storico di 5.598,75 (29/01/2026). Il prezzo si è fermato sulla linea a 3.498, l'ombra massima della congestione del 2025. Fino alla Fed il prezzo colma l'inefficienza lasciata dal crollo (rimbalzo verso 3.720–3.760). Dopo Fed e CPI, spinta ribassista per prendere la liquidità sotto 3.498 (3.380–3.420). Da gennaio ripartenza verso 3.900–4.000. Probabilità 55%: tre fasi in sequenza, basta che una vada storta per mancare lo scenario.",
+  "tags": [
+    "oro",
+    "fed",
+    "cpi",
+    "ipotesi"
+  ],
+  "targets": [
+    {
+      "label": "Fase 1 · rimbalzo",
+      "kind": "touch_above",
+      "zone_low": 3720,
+      "zone_high": 3760,
+      "deadline": "2026-12-09"
+    },
+    {
+      "label": "Fase 2 · discesa subito dopo Fed e CPI",
+      "kind": "touch_below",
+      "zone_low": 3380,
+      "zone_high": 3420,
+      "not_before": "2026-12-09",
+      "deadline": "2026-12-31"
+    },
+    {
+      "label": "Fase 3 · ripartenza",
+      "kind": "touch_above",
+      "zone_low": 3900,
+      "zone_high": 4000,
+      "deadline": "2027-01-31"
+    }
+  ],
+  "invalidations": [
+    {
+      "kind": "weekly_close_above",
+      "level": 3800,
+      "until": "2026-12-08",
+      "description": "chiusura settimanale sopra 3.800 prima della Fed"
+    },
+    {
+      "kind": "weekly_close_below",
+      "level": 3300,
+      "description": "chiusura settimanale sotto 3.300"
+    }
+  ],
+  "align_to_entry": false
+}

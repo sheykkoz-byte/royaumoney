@@ -87,7 +87,11 @@ def summarize(rows: list[dict]) -> dict:
 
 def track_record(session: Session) -> dict:
     rows = []
+    annulled = 0
     for p in session.scalars(select(Prediction)):
+        if p.status == "annullata":  # withdrawn before any price: not part of the record
+            annulled += 1
+            continue
         state = json.loads(p.state or "{}")
         spec = json.loads(p.spec)
         targets = state.get("targets", [])
@@ -100,4 +104,6 @@ def track_record(session: Session) -> dict:
             "targets_decided": sum(1 for t in targets if t["status"] in ("raggiunta",
                                                                           "mancata")),
         })
-    return summarize(rows)
+    out = summarize(rows)
+    out["annulled"] = annulled
+    return out

@@ -27,7 +27,10 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 ## Registro delle previsioni (Fase 3)
 - `backend/app/predictions/`: `spec.py` (cosa dice una previsione), `evaluate.py` (verifica pura su barre giornaliere), `service.py` (crea, verifica, registro in git), `stats.py` (track record, Brier).
 - Una previsione non si modifica MAI dopo la registrazione: spec congelata con SHA-256, copia in `registro/P-xxxx.json` (committare sempre questi file).
-- Oro: strumento `XAUUSD_EST` = spot stimato dai future COMEX (`app/sources/futures.py`); P-0001 usa `align_to_entry` (+18,44 $). Dettagli in `docs/registro-previsioni.md`.
+- Oro: strumento `XAUUSD_SPOT` = spot vero XAU/USD da Twelve Data (`app/sources/twelvedata.py`). `XAUUSD_EST` (stima dai future) resta solo per P-0001, annullata e sostituita da P-0002.
+- Annullare è permesso solo prima di qualsiasi prezzo successivo alla registrazione (`previsioni annulla`).
+- Verifica giornaliera: attività pianificata nel cloud → `previsioni ciclo` → commit di `registro/stato`, `registro/prezzi`, `registro/track-record.json`.
+- Statistiche robuste (mediana/MAD) negli z-score: vedi `docs/metodo-analisi.md` (caso giugno 2022).
 
 ## Comandi
 `make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make previsioni` · `make previsione ID=…` · `make track-record` · `make dev` · `make test` · `make lint`
