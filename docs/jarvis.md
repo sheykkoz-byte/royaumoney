@@ -10,7 +10,7 @@
 | WebSocket `/ws/jarvis` e `POST /jarvis/domanda` | ✅ fatti |
 | Frontend: sfera 3D, grafici "olografici", schede, microfono, voce del browser | ✅ fatti (`frontend/src/app/page.tsx`) |
 | Cervello Claude (tool use + streaming) | ⏳ serve `ANTHROPIC_API_KEY` |
-| Voce ElevenLabs con timestamp | ⏳ serve `ELEVENLABS_API_KEY` |
+| Voce ElevenLabs con timestamp | ✅ voce "Daniel", modello `eleven_flash_v2_5`; ogni scena parte sul carattere esatto dell'audio, la sfera segue il volume reale |
 | Latenza < 1,5 s, interruzione mentre parla, parola di attivazione | ⏳ con ElevenLabs |
 
 ## Come funziona una risposta
@@ -44,7 +44,9 @@ domanda (voce o testo)
 **Sincronizzazione con la voce**: il direttore calcola l'indice del carattere di ogni parola chiave. Gli accenti vengono ignorati, una parola può essere l'inizio di una più lunga ("risal" trova "risalendo") e l'ordine segue quello del parlato.
 - Con la **voce del browser**, gli eventi `boundary` dicono quale carattere si sta pronunciando.
 - Se il browser non li invia, valgono i **tempi stimati** (circa 14 caratteri al secondo).
-- Con **ElevenLabs** si useranno i timestamp per carattere dell'audio.
+- Con **ElevenLabs** (`backend/app/jarvis/voice.py`) ogni carattere ha il suo istante nell'audio: il backend calcola `tempi_voce` per ogni scena e il frontend (`playAudio` in `src/lib/voice.ts`) le fa partire quando l'audio arriva a quel punto. Se ElevenLabs non risponde, si usa la voce del browser e compare un avviso.
+- Voce, modello e modalità si cambiano con `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL` e `VOICE` (`auto` | `elevenlabs` | `browser`). Nel cloud la chiave è una credenziale dell'ambiente `royaumoney` (la inietta la rete), quindi serve `VOICE=elevenlabs`.
+- Latenza misurata: 1,0–1,7 s per l'intera risposta. Per stare sempre sotto 1,5 s il passo successivo è sintetizzare frase per frase.
 
 ## Provarlo
 

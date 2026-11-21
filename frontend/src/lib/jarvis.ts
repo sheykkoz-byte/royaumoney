@@ -33,6 +33,10 @@ export type Risposta = {
   parlato: string;
   scene: Cue[];
   tempi_stimati: number[];
+  // ElevenLabs voice (absent when the browser voice is used)
+  audio?: { formato: string; audio_base64: string; inizio_caratteri: number[] | null; durata: number | null };
+  tempi_voce?: number[];
+  voce_errore?: string;
   modalita: string;
   intento: string | null;
 };

@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     elevenlabs_api_key: str = ""
     twelvedata_api_key: str = ""  # optional in the cloud: the proxy injects it
 
+    # Jarvis's voice. "auto": ElevenLabs if ELEVENLABS_API_KEY is set, else the browser.
+    # "elevenlabs": always (in the cloud the proxy injects the key). "browser": never.
+    voice: str = "auto"
+    elevenlabs_voice_id: str = "onwK4e9ZLuTAKqWW03F9"  # Daniel – steady broadcaster
+    elevenlabs_model: str = "eleven_flash_v2_5"  # low latency, speaks Italian
+
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'royaumoney.db'}"
     # First date downloaded on a full backfill. Five years of z-score window
     # plus margin for 6-month changes and regime history.

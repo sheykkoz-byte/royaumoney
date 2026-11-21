@@ -3,7 +3,8 @@
 // With the browser voice, `boundary` events give the character being spoken: a cue fires
 // when that index reaches the cue's `char_index`. Some voices send no boundary events; if
 // none arrives shortly after the start, cues fire on the backend's estimated times instead.
-// ElevenLabs (with its character timestamps) will plug in here in place of the browser voice.
+// With ElevenLabs (`playAudio`), each character has a start time in the audio: cues fire at
+// the exact moment and the orb follows the real loudness of the voice.
 
 export type PlayHandlers = {
   onCue: (index: number) => void;
@@ -120,4 +121,72 @@ export function play(
     timers.forEach((t) => { clearTimeout(t); clearInterval(t); });
     speechSynthesis.cancel();
   };
+}
+
+
+let audioCtx: AudioContext | null = null;
+let current: HTMLAudioElement | null = null;
+
+export function stopAudio() {
+  if (current) { current.pause(); current.src = ""; current = null; }
+}
+
+export function playAudio(
+  audioBase64: string,
+  mime: string,
+  charStarts: number[] | null,
+  cueSeconds: number[],
+  h: PlayHandlers & { onLevel: (level: number) => void },
+): () => void {
+  stopAudio();
+  stopSpeaking();
+  const el = new Audio(`data:${mime};base64,${audioBase64}`);
+  current = el;
+  const fired = new Set<number>();
+  let raf = 0, ended = false;
+  let analyser: AnalyserNode | null = null;
+  try {
+    audioCtx = audioCtx ?? new AudioContext();
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+    const src = audioCtx.createMediaElementSource(el);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    src.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  } catch {
+    analyser = null; // the audio still plays, the orb falls back to word pulses
+  }
+  const buf = new Uint8Array(512);
+  let lastChar = -1;
+
+  const finish = () => {
+    if (ended) return;
+    ended = true;
+    cancelAnimationFrame(raf);
+    cueSeconds.forEach((_, i) => { if (!fired.has(i)) { fired.add(i); h.onCue(i); } });
+    h.onLevel(-1);
+    h.onEnd();
+  };
+  const tick = () => {
+    const t = el.currentTime;
+    cueSeconds.forEach((s, i) => {
+      if (!fired.has(i) && t >= s) { fired.add(i); h.onCue(i); }
+    });
+    if (charStarts) {
+      let c = lastChar;
+      while (c + 1 < charStarts.length && charStarts[c + 1] <= t) c++;
+      if (c !== lastChar) { lastChar = c; h.onWord(c); }
+    }
+    if (analyser) {
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) { const x = (v - 128) / 128; sum += x * x; }
+      h.onLevel(Math.sqrt(sum / buf.length));
+    }
+    if (!ended) raf = requestAnimationFrame(tick);
+  };
+  el.onended = finish;
+  el.onerror = finish;
+  el.play().then(() => { raf = requestAnimationFrame(tick); }).catch(() => finish());
+  return () => { ended = true; cancelAnimationFrame(raf); stopAudio(); h.onLevel(-1); };
 }

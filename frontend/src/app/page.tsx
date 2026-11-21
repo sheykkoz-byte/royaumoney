@@ -7,7 +7,7 @@ import Card from "@/components/Cards";
 import Chart from "@/components/Chart";
 import type { OrbMode, OrbSignals } from "@/components/Orb";
 import { EMPTY_STAGE, applyCue, splitSentences, wsUrl, type Risposta, type Stage } from "@/lib/jarvis";
-import { play, stopSpeaking } from "@/lib/voice";
+import { play, playAudio, stopAudio, stopSpeaking } from "@/lib/voice";
 
 const Orb = dynamic(() => import("@/components/Orb"), { ssr: false });
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -18,7 +18,7 @@ const STATUS: Record<OrbMode, string> = { idle: "PRONTO", listen: "IN ASCOLTO", 
 type Recognition = any;
 
 export default function Jarvis() {
-  const signals = useRef<OrbSignals>({ mode: "idle", mic: 0, spike: 0 });
+  const signals = useRef<OrbSignals>({ mode: "idle", mic: 0, spike: 0, voice: -1 });
   const [mode, setModeState] = useState<OrbMode>("idle");
   const [stage, setStage] = useState<Stage>(EMPTY_STAGE);
   const [you, setYou] = useState("");
@@ -42,18 +42,29 @@ export default function Jarvis() {
     setStage(EMPTY_STAGE);
     setMode("speak");
     const t0 = performance.now();
-    cancelPlay.current = play(r.parlato, r.scene.map((c) => c.char_index), r.tempi_stimati, {
-      onCue: (i) => {
+    const handlers = {
+      onCue: (i: number) => {
         const cue = r.scene[i];
         setStage((s) => applyCue(s, cue, performance.now() - t0));
         setShown((n) => Math.max(n, cue.char_index));
       },
-      onWord: (c) => {
-        signals.current.spike = 0.55 + Math.random() * 0.35;
+      onWord: (c: number) => {
+        if (signals.current.voice < 0) signals.current.spike = 0.55 + Math.random() * 0.35;
         setShown((n) => Math.max(n, Math.floor(c)));
       },
       onEnd: () => { setShown(r.parlato.length); setMode("idle"); },
-    });
+    };
+    if (r.audio && r.tempi_voce) {
+      // ElevenLabs: exact word timing and the real loudness of the voice
+      cancelPlay.current = playAudio(r.audio.audio_base64, r.audio.formato,
+        r.audio.inizio_caratteri, r.tempi_voce,
+        { ...handlers, onLevel: (l) => { signals.current.voice = l; } });
+    } else {
+      if (r.voce_errore) flash("Voce ElevenLabs non disponibile: uso la voce del browser.");
+      signals.current.voice = -1;
+      cancelPlay.current = play(r.parlato, r.scene.map((c) => c.char_index), r.tempi_stimati,
+        handlers);
+    }
   }, []);
 
   // WebSocket with automatic reconnection
@@ -99,8 +110,7 @@ export default function Jarvis() {
     if (signals.current.mode === "listen") setMode("idle");
   };
   const startMic = async () => {
-    stopSpeaking();
-    cancelPlay.current();
+    cancelPlay.current(); stopSpeaking(); stopAudio(); // the user talks: Jarvis stops
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });

@@ -7,7 +7,8 @@ import * as THREE from "three";
 
 export type OrbMode = "idle" | "listen" | "think" | "speak";
 
-export type OrbSignals = { mode: OrbMode; mic: number; spike: number };
+// `voice`: real loudness of Jarvis's audio (0–1), or −1 when the voice gives no audio level
+export type OrbSignals = { mode: OrbMode; mic: number; spike: number; voice: number };
 
 export default function Orb({ signals }: { signals: React.MutableRefObject<OrbSignals> }) {
   const host = useRef<HTMLDivElement>(null);
@@ -104,6 +105,7 @@ export default function Orb({ signals }: { signals: React.MutableRefObject<OrbSi
       const s = signals.current;
       let target: number;
       if (s.mode === "listen") target = Math.min(1, s.mic * 4.5);
+      else if (s.mode === "speak" && s.voice >= 0) target = Math.min(1, 0.12 + s.voice * 3.2);
       else if (s.mode === "speak") {
         s.spike *= 0.9;
         target = Math.min(1, 0.22 + 0.28 * Math.abs(Math.sin(t * 7.3)) * Math.abs(Math.sin(t * 2.1 + 1)) + s.spike);
