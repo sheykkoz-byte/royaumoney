@@ -2,14 +2,17 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import date
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from app import catalog
 from app.analysis.engine import run as run_analysis
 from app.config import get_settings
 from app.db import Prediction, init_db, session_scope
 from app.health import data_health
+from app.jarvis import session as jarvis
 from app.predictions import service as predictions
 from app.predictions.spec import PredictionSpec
 from app.predictions.stats import track_record
@@ -129,3 +132,43 @@ def create_previsione(spec: PredictionSpec) -> dict:
 def get_track_record() -> dict:
     with session_scope() as s:
         return track_record(s)
+
+
+# ---- Phase 4: Jarvis ------------------------------------------------------------------------
+class Domanda(BaseModel):
+    testo: str
+
+
+def _ask(testo: str) -> dict:
+    with session_scope() as s:
+        return jarvis.ask(s, testo)
+
+
+@app.post("/jarvis/domanda")
+async def jarvis_domanda(d: Domanda) -> dict:
+    """Same as the WebSocket, in one request: the directed script for a question."""
+    try:
+        return await run_in_threadpool(_ask, d.testo)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from None
+
+
+@app.websocket("/ws/jarvis")
+async def jarvis_ws(ws: WebSocket) -> None:
+    """Client sends {"tipo": "domanda", "testo": ...}; server answers with
+    {"tipo": "stato", "stato": "elaboro"} then {"tipo": "risposta", ...script}."""
+    await ws.accept()
+    try:
+        while True:
+            msg = await ws.receive_json()
+            if msg.get("tipo") != "domanda":
+                await ws.send_json({"tipo": "errore", "messaggio": "tipo di messaggio sconosciuto"})
+                continue
+            await ws.send_json({"tipo": "stato", "stato": "elaboro"})
+            try:
+                out = await run_in_threadpool(_ask, msg.get("testo", ""))
+                await ws.send_json({"tipo": "risposta", **out})
+            except Exception as e:  # keep the connection alive, report the problem
+                await ws.send_json({"tipo": "errore", "messaggio": str(e)})
+    except WebSocketDisconnect:
+        return

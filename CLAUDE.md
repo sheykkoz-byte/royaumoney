@@ -10,7 +10,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Chiavi solo in `.env`, mai nel repository.
 
 ## Stato
-- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Prossima: Fase 4 (cervello Claude + voce + direttore di scena).
+- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Fase 4 in corso: fatte le parti senza chiavi (strumenti, direttore di scena, cervello dimostrativo, WebSocket, frontend). Mancano cervello Claude (ANTHROPIC_API_KEY) e voce ElevenLabs (ELEVENLABS_API_KEY). Dettagli in `docs/jarvis.md`.
 
 ## Come è fatto il motore dati
 - Ogni serie è in `backend/app/catalog.py`. Per aggiungerne una basta una riga lì; `make verify` controlla ID e unità su FRED.
@@ -31,6 +31,11 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Annullare è permesso solo prima di qualsiasi prezzo successivo alla registrazione (`previsioni annulla`).
 - Verifica giornaliera: attività pianificata nel cloud → `previsioni ciclo` → commit di `registro/stato`, `registro/prezzi`, `registro/track-record.json`.
 - Statistiche robuste (mediana/MAD) negli z-score: vedi `docs/metodo-analisi.md` (caso giugno 2022).
+
+## Jarvis (Fase 4)
+- `backend/app/jarvis/`: `tools.py` (strumenti in formato tool use, unica fonte dei numeri), `scene.py` (direttore di scena: valida, allinea le parole, allega i dati), `demo.py` (cervello senza AI), `session.py` (sceglie il cervello).
+- Frontend: `src/app/page.tsx` (Jarvis), `src/components/{Orb,Chart,Cards}.tsx`, `src/lib/{jarvis,voice}.ts`. La pagina di stato è in `src/app/stato/`.
+- Regola: il modello non scrive mai numeri nei grafici; il direttore li prende dagli strumenti.
 
 ## Comandi
 `make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make previsioni` · `make previsione ID=…` · `make track-record` · `make dev` · `make test` · `make lint`

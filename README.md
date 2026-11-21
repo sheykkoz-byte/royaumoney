@@ -3,7 +3,7 @@
 Piattaforma di intelligence sugli investimenti con un assistente vocale (Jarvis).
 Il piano completo è in [`PIANO_ROYAUMONEY_JARVIS.md`](PIANO_ROYAUMONEY_JARVIS.md).
 
-**Stato:** Fasi 0 (struttura), 1 (motore dati), 2 (regime e convergenza) e 3 (registro delle previsioni) completate.
+**Stato:** Fasi 0–3 completate. Fase 4 (Jarvis) in corso: sfera, grafici sincronizzati con la voce e cervello dimostrativo funzionano; cervello Claude e voce ElevenLabs aspettano le chiavi (vedi [`docs/jarvis.md`](docs/jarvis.md)).
 
 ## Avvio rapido
 
@@ -34,7 +34,8 @@ Poi apri:
 - http://localhost:8000/analisi/oggi: regime, scenari, convergenza, divergenze e i dati a sostegno (`?as_of=2020-04-30` per una data passata);
 - http://localhost:8000/previsioni e http://localhost:8000/track-record: il registro delle previsioni;
 - http://localhost:8000/docs: tutte le API;
-- http://localhost:3000: pagina provvisoria con track record e stato dei dati;
+- http://localhost:3000: **Jarvis** (sfera vocale, grafici e schede sincronizzati con la voce);
+- http://localhost:3000/stato: track record e stato dei dati;
 - `prototype/index.html`: il prototipo dell'interfaccia di Jarvis.
 
 Con il backend acceso, ogni giorno alle **07:15** e alle **23:15** (ora di Roma) i dati si aggiornano e le previsioni aperte vengono verificate.
@@ -52,9 +53,10 @@ backend/            FastAPI + motore dati (Python)
   app/analysis/     Fase 2: indicatori normalizzati, regime, scenari, convergenza
     config.py       tutte le scelte di metodo (indicatori, pesi, soglie)
   app/predictions/  Fase 3: registro delle previsioni, verifica, track record
+  app/jarvis/       Fase 4: strumenti del cervello, direttore di scena, cervello dimostrativo
   seeds/previsioni/ previsioni in JSON da registrare
   tests/            test automatici (offline)
-frontend/           Next.js (UI immersiva dalle Fasi 4–6)
+frontend/           Next.js: Jarvis (sfera three.js, grafici, voce) e pagina di stato
 registro/           registro delle previsioni in git (non modificabile)
 prototype/          prototipo HTML di Jarvis
 docs/               fonti dati, serie verificate, metodo di analisi, registro previsioni
