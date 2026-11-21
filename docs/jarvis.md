@@ -103,5 +103,5 @@ frontend/artifact/build.sh /percorso/uscita
 - **Memoria:** la WebSocket conserva le ultime domande e risposte della conversazione (serve, per esempio, a confermare una previsione con "sì").
 - **Cache:** strumenti e prompt di sistema sono in cache tra una domanda e l'altra.
 - **Se Claude non risponde** (rete, chiave, rifiuto): risponde il cervello dimostrativo e l'interfaccia lo segnala.
-- **Chiave nel cloud:** va come variabile d'ambiente `ANTHROPIC_API_KEY` dell'ambiente `royaumoney` (le chiavi Anthropic non possono essere credenziali di rete); serve una sessione nuova per leggerla. In locale: `.env`.
+- **Chiave nel cloud:** va come variabile d'ambiente `JARVIS_ANTHROPIC_API_KEY` dell'ambiente `royaumoney`. Il nome `ANTHROPIC_API_KEY` non arriva alle sessioni cloud: lo usa Claude Code per sé (verificato il 21/11/2026 con una sessione nuova). Le chiavi Anthropic non possono essere credenziali di rete; serve una sessione nuova per leggerla. In locale: `.env`, con uno dei due nomi.
 - **Latenza:** con 2–4 chiamate agli strumenti una risposta richiede alcuni secondi; per scendere sotto 1,5 s servirà lo streaming frase per frase verso la voce.

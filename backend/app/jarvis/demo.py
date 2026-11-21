@@ -184,7 +184,8 @@ def greeting(s: Session) -> dict:
 def fallback(s: Session) -> dict:
     return {"parlato": "In modalità dimostrativa conosco l'oro, il regime macro, gli scenari "
                        "e la convergenza, la liquidità, il lavoro e il registro delle "
-                       "previsioni. Con la chiave Anthropic potrò rispondere a tutto.",
+                       "previsioni. Quando sarà attivo il cervello Claude potrò rispondere "
+                       "anche alle altre domande.",
             "scene": []}
 
 
