@@ -363,3 +363,23 @@ def test_daily_cycle_rebuilds_from_ledger_and_writes_state(session, monkeypatch,
     state = json.loads((tmp_path / "stato" / "P-0001.json").read_text(encoding="utf-8"))
     assert state["status"] == "aperta" and state["last_bar_date"] == "2026-11-27"
     assert json.loads((tmp_path / "track-record.json").read_text())["as_of"] == "2026-11-28"
+
+
+def test_daily_from_hourly_uses_new_york_sessions_and_drops_weekend():
+    from app.sources.twelvedata import daily_from_hourly
+
+    idx = pd.to_datetime([
+        "2026-11-19 16:00",  # Thu 16:00 → Thursday session
+        "2026-11-19 17:00",  # Thu 17:00 → Friday session (opens)
+        "2026-11-20 10:00",  # Fri → Friday session
+        "2026-11-20 16:00",  # last Friday hour → Friday close
+        "2026-11-21 11:00",  # Saturday quote → weekend, dropped
+        "2026-11-22 18:00",  # Sunday 18:00 → Monday session
+    ])
+    h = pd.DataFrame({"open": [1, 2, 3, 4, 9, 5], "high": [1, 2, 8, 4, 99, 5],
+                      "low": [1, 2, 0.5, 4, 0.1, 5], "close": [1, 2, 3, 4.5, 9, 5]},
+                     index=idx, dtype=float)
+    d = daily_from_hourly(h)
+    assert [x.strftime("%a") for x in d.index] == ["Thu", "Fri", "Mon"]
+    fri = d.loc["2026-11-20"]
+    assert (fri.open, fri.high, fri.low, fri.close) == (2, 8, 0.5, 4.5)

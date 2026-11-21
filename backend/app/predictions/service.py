@@ -70,8 +70,10 @@ def refresh_bars(session: Session, instrument: str, start: date, end: date | Non
         from app.config import get_settings
         from app.sources import twelvedata
 
-        df = twelvedata.download_ohlc("XAU/USD", start, end, get_settings().twelvedata_api_key)
-        return _upsert_bars(session, instrument, df, "twelvedata:XAU/USD")
+        df = twelvedata.download_daily_ny("XAU/USD", start, end,
+                                          get_settings().twelvedata_api_key)
+        return _upsert_bars(session, instrument, df,
+                            "twelvedata:XAU/USD (1h → giornate 17:00 New York)")
     if instrument == "XAUUSD_EST":
         needed = futures.contracts_needed(start, end)
         raw = download_ohlc([c.symbol for c in needed], start, end)
