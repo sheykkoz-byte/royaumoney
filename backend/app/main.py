@@ -8,8 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import catalog
 from app.analysis.engine import run as run_analysis
 from app.config import get_settings
-from app.db import init_db, session_scope
+from app.db import Prediction, init_db, session_scope
 from app.health import data_health
+from app.predictions import service as predictions
+from app.predictions.spec import PredictionSpec
+from app.predictions.stats import track_record
 from app.scheduler import start_scheduler
 from app.store import load_frame, sync_catalog
 
@@ -21,6 +24,7 @@ async def lifespan(app: FastAPI):
     init_db()
     with session_scope() as s:
         sync_catalog(s)
+        predictions.import_ledger(s)  # a fresh database picks up the git ledger
     scheduler = start_scheduler() if get_settings().scheduler_enabled else None
     yield
     if scheduler:
@@ -31,7 +35,7 @@ app = FastAPI(title="RoyauMoney API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in get_settings().cors_origins.split(",") if o.strip()],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -91,3 +95,37 @@ def analisi_oggi(
     with session_scope() as s:
         return run_analysis(s, as_of, has_fred_key=bool(get_settings().fred_api_key),
                             with_history=history)
+
+
+# ---- Phase 3: prediction registry --------------------------------------------------------
+@app.get("/previsioni")
+def list_previsioni(status: str | None = None) -> list[dict]:
+    with session_scope() as s:
+        return predictions.list_predictions(s, status)
+
+
+@app.get("/previsioni/{pid}")
+def get_previsione(pid: str) -> dict:
+    with session_scope() as s:
+        p = s.get(Prediction, pid)
+        if p is None:
+            raise HTTPException(404, f"Previsione {pid} non trovata")
+        return predictions.view(s, p)
+
+
+@app.post("/previsioni", status_code=201)
+def create_previsione(spec: PredictionSpec) -> dict:
+    """Register a prediction (frozen after creation) and verify it immediately."""
+    with session_scope() as s:
+        try:
+            p = predictions.create(s, spec, predictions.analysis_context(s))
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from None
+        predictions.verify(s, ids=[p.id])
+        return predictions.view(s, p)
+
+
+@app.get("/track-record")
+def get_track_record() -> dict:
+    with session_scope() as s:
+        return track_record(s)

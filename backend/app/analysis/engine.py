@@ -130,6 +130,10 @@ def _scenario(sc: C.Scenario, rows: dict[str, pd.Series | None],
     }
 
 
+def _join(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " e " + names[-1]
+
+
 def _verdict(scenarios: list[dict]) -> dict:
     """Dominant scenario, or an explicit statement that the data are mixed."""
     scored = [s for s in scenarios if s["score"] is not None]
@@ -142,7 +146,7 @@ def _verdict(scenarios: list[dict]) -> dict:
         return {
             "scenario": None, "mixed": True,
             "text": ("Nessuno scenario prevale: i dati sono contrastanti"
-                     + (f" ({' e '.join(close)} quasi alla pari)" if len(close) > 1 else "")
+                     + (f" ({_join(close)} quasi alla pari)" if len(close) > 1 else "")
                      + f". Il più forte ha punteggio {top['score']}."),
         }
     return {"scenario": top["id"], "mixed": False,

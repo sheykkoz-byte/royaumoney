@@ -54,3 +54,35 @@ def closes_to_points(
             RawPoint(d.date(), float(v), published_at=d.date()) for d, v in s.items()
         ]
     return out
+
+
+def download_ohlc(
+    tickers: list[str], start: date, end: date | None = None
+) -> dict[str, pd.DataFrame]:
+    """Daily OHLC per ticker (columns open, high, low, close; index = date)."""
+    import yfinance as yf
+
+    last: Exception | None = None
+    for attempt in range(4):
+        try:
+            df = yf.download(
+                tickers, start=start.isoformat(),
+                end=None if end is None else (pd.Timestamp(end) + pd.Timedelta(days=1)).date()
+                .isoformat(),
+                auto_adjust=False, progress=False, group_by="ticker", threads=True,
+            )
+            if df is None or df.empty:
+                raise YahooError("empty response")
+            out = {}
+            for t in tickers:
+                if t not in df.columns.get_level_values(0):
+                    continue
+                sub = df[t][["Open", "High", "Low", "Close"]].dropna(subset=["Close"])
+                sub.columns = ["open", "high", "low", "close"]
+                sub.index = pd.DatetimeIndex(sub.index).tz_localize(None).normalize()
+                out[t] = sub
+            return out
+        except Exception as e:  # yfinance raises many types, incl. rate limits
+            last = e
+            time.sleep(3 * 2**attempt)
+    raise YahooError(f"Yahoo OHLC download failed: {last}")

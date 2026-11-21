@@ -10,7 +10,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Chiavi solo in `.env`, mai nel repository.
 
 ## Stato
-- Fasi 0, 1 e 2: fatte (novembre 2026). Prossima: Fase 3 (registro delle previsioni).
+- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Prossima: Fase 4 (cervello Claude + voce + direttore di scena).
 
 ## Come è fatto il motore dati
 - Ogni serie è in `backend/app/catalog.py`. Per aggiungerne una basta una riga lì; `make verify` controlla ID e unità su FRED.
@@ -24,5 +24,10 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Tutte le scelte di metodo stanno in `analysis/config.py`; il metodo è spiegato in `docs/metodo-analisi.md`.
 - Ogni indicatore ha una colonna `available` (data di pubblicazione): l'analisi a una data usa solo righe con `available <= as_of`. Il test `test_analyze_is_point_in_time` lo garantisce.
 
+## Registro delle previsioni (Fase 3)
+- `backend/app/predictions/`: `spec.py` (cosa dice una previsione), `evaluate.py` (verifica pura su barre giornaliere), `service.py` (crea, verifica, registro in git), `stats.py` (track record, Brier).
+- Una previsione non si modifica MAI dopo la registrazione: spec congelata con SHA-256, copia in `registro/P-xxxx.json` (committare sempre questi file).
+- Oro: strumento `XAUUSD_EST` = spot stimato dai future COMEX (`app/sources/futures.py`); P-0001 usa `align_to_entry` (+18,44 $). Dettagli in `docs/registro-previsioni.md`.
+
 ## Comandi
-`make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make dev` · `make test` · `make lint`
+`make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make previsioni` · `make previsione ID=…` · `make track-record` · `make dev` · `make test` · `make lint`

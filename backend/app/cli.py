@@ -8,9 +8,12 @@ from pathlib import Path
 
 from app.analysis.engine import run as run_analysis
 from app.config import BACKEND_DIR, get_settings
-from app.db import init_db, session_scope
+from app.db import Prediction, init_db, session_scope
 from app.health import data_health
 from app.ingest import run_all, verify_fred
+from app.predictions import service as predictions
+from app.predictions.spec import PredictionSpec
+from app.predictions.stats import track_record
 from app.sources.fred import FredClient
 
 DOC = BACKEND_DIR.parent / "docs" / "serie-verificate.md"
@@ -80,6 +83,33 @@ def print_analysis(r: dict) -> None:
         print(f"\nNota: {n}")
 
 
+def print_prediction(v: dict) -> None:
+    print(f"\n{v['id']} · {v['title']}")
+    print(f"  {v['asset']} ({v['instrument_label']}), ingresso {v['entry_price']}, "
+          f"autore {v['author']}, registrata {v['created_at']}")
+    if v.get("instrument_offset"):
+        print(f"  allineamento allo strumento: {v['instrument_offset']:+.2f}")
+    print(f"  STATO: {v['status'].upper()}"
+          + (f" il {v['resolved_on']}" if v["resolved_on"] else "")
+          + f" · ultimo prezzo verificato: {v['last_bar_date'] or '—'}")
+    for t in v["targets"]:
+        print(f"  [{t.get('status', '')}] {t['label']}: tocca {t.get('trigger')} "
+              f"entro {t['deadline']}" + (f" → {t['hit_on']} a {t['hit_price']}"
+                                          if t.get("hit_on") else ""))
+    for r in v["invalidations"]:
+        print(f"  invalidazione: {r['description']}"
+              + (f" → SCATTATA {r['triggered_on']}" if r.get("triggered_on") else ""))
+    if v.get("extremes"):
+        e = v["extremes"]
+        print(f"  dalla registrazione: massimo {e['high']} ({e['high_on']}), "
+              f"minimo {e['low']} ({e['low_on']}), ultima chiusura {e['last_close']}")
+    if v.get("context", {}).get("regime"):
+        print(f"  contesto alla registrazione: {v['context']['regime']}. "
+              f"{v['context'].get('verdict', '')}")
+    for ev in v.get("events", []):
+        print(f"  {ev['date']}  {ev['message']}")
+
+
 def main() -> None:
     logging.basicConfig(level=logging.WARNING)
     p = argparse.ArgumentParser(prog="app.cli")
@@ -93,6 +123,17 @@ def main() -> None:
     an.add_argument("--as-of", type=date.fromisoformat, default=None,
                     help="Point-in-time analysis on this date (YYYY-MM-DD)")
     an.add_argument("--json", action="store_true", help="Print the full JSON")
+    pv = sub.add_parser("previsioni", help="Prediction registry")
+    pvs = pv.add_subparsers(dest="action", required=True)
+    add = pvs.add_parser("add", help="Register a prediction from a JSON file")
+    add.add_argument("file", type=Path)
+    ver = pvs.add_parser("verifica", help="Check open predictions against prices")
+    ver.add_argument("--as-of", type=date.fromisoformat, default=None)
+    pvs.add_parser("list", help="All predictions with their state")
+    pvs.add_parser("importa", help="Load registro/*.json into the database (keeps dates)")
+    show = pvs.add_parser("show", help="One prediction with its event log")
+    show.add_argument("id")
+    sub.add_parser("track-record", help="Hit rates and Brier score")
     args = p.parse_args()
 
     init_db()
@@ -118,6 +159,36 @@ def main() -> None:
             print(json.dumps(r, indent=1, ensure_ascii=False))
         else:
             print_analysis(r)
+    elif args.cmd == "previsioni":
+        with session_scope() as s:
+            if args.action == "add":
+                spec = PredictionSpec.model_validate_json(args.file.read_text(encoding="utf-8"))
+                p = predictions.create(s, spec, predictions.analysis_context(s))
+                predictions.verify(s, ids=[p.id])
+                print(f"Registrata {p.id} · impronta {p.spec_hash[:16]}…")
+                print_prediction(predictions.view(s, p))
+            elif args.action == "verifica":
+                for r in predictions.verify(s, as_of=args.as_of):
+                    print(f"{r['id']}: {r.get('status', r.get('error'))} "
+                          f"(ultimo prezzo {r.get('last_bar')})")
+                    for m in r.get("new_events", []):
+                        print(f"  · {m}")
+            elif args.action == "importa":
+                added = predictions.import_ledger(s)
+                print(f"Importate: {', '.join(added) or 'nessuna (già presenti)'}")
+                if added:
+                    predictions.verify(s, ids=added)
+            elif args.action == "list":
+                for v in predictions.list_predictions(s):
+                    print(f"{v['id']}  {v['status']:<10} {v['asset']:<7} {v['title']}")
+            elif args.action == "show":
+                p = s.get(Prediction, args.id)
+                if p is None:
+                    raise SystemExit(f"{args.id} non trovata")
+                print_prediction(predictions.view(s, p))
+    elif args.cmd == "track-record":
+        with session_scope() as s:
+            print(json.dumps(track_record(s), indent=1, ensure_ascii=False))
     elif args.cmd == "health":
         with session_scope() as s:
             h = data_health(s)

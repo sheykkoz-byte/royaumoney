@@ -116,3 +116,66 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+# ---- Phase 3: prediction registry -----------------------------------------------------------
+class Bar(Base):
+    """Daily OHLC bar of an instrument used to verify predictions."""
+
+    __tablename__ = "bars"
+    __table_args__ = (UniqueConstraint("instrument", "date", name="uq_bar"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    instrument: Mapped[str] = mapped_column(String(40))
+    date: Mapped[date] = mapped_column(Date)
+    open: Mapped[float] = mapped_column(Float)
+    high: Mapped[float] = mapped_column(Float)
+    low: Mapped[float] = mapped_column(Float)
+    close: Mapped[float] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(60))
+    detail: Mapped[str | None] = mapped_column(Text)  # JSON: contract used, carry…
+    fetched_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class Prediction(Base):
+    """A registered prediction. The spec fields never change after creation."""
+
+    __tablename__ = "predictions"
+
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)  # e.g. P-0001
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    author: Mapped[str] = mapped_column(String(20))
+    asset: Mapped[str] = mapped_column(String(40))
+    instrument: Mapped[str] = mapped_column(String(40))
+    direction: Mapped[str] = mapped_column(String(10))
+    entry_price: Mapped[float] = mapped_column(Float)
+    probability: Mapped[float | None] = mapped_column(Float)
+    horizon_end: Mapped[date] = mapped_column(Date)
+    title: Mapped[str] = mapped_column(String(200))
+    scenario: Mapped[str | None] = mapped_column(String(200))
+    reasoning: Mapped[str] = mapped_column(Text)
+    spec: Mapped[str] = mapped_column(Text)  # canonical JSON of what was predicted
+    spec_hash: Mapped[str] = mapped_column(String(64))  # sha256 of spec: proves no edits
+    context: Mapped[str | None] = mapped_column(Text)  # JSON: regime & scenarios at creation
+    # Derived by the daily verification (recomputed, never typed by hand)
+    status: Mapped[str] = mapped_column(String(20), default="aperta")
+    resolved_on: Mapped[date | None] = mapped_column(Date)
+    state: Mapped[str | None] = mapped_column(Text)  # JSON: per-target / per-rule state
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_bar_date: Mapped[date | None] = mapped_column(Date)
+
+
+class PredictionEvent(Base):
+    """Append-only log of what happened to a prediction."""
+
+    __tablename__ = "prediction_events"
+    __table_args__ = (UniqueConstraint("prediction_id", "key", name="uq_pred_event"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    prediction_id: Mapped[str] = mapped_column(ForeignKey("predictions.id"))
+    key: Mapped[str] = mapped_column(String(80))  # identifies the event, for idempotency
+    on_date: Mapped[date] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(30))
+    message: Mapped[str] = mapped_column(Text)
+    data: Mapped[str | None] = mapped_column(Text)
+    logged_at: Mapped[datetime] = mapped_column(DateTime)

@@ -1,4 +1,4 @@
-.PHONY: setup dev backend frontend verify ingest ingest-full health analisi test lint
+.PHONY: setup dev backend frontend verify ingest ingest-full health analisi previsioni previsione previsioni-verifica previsioni-importa track-record test lint
 
 UV ?= uv
 BACK = cd backend &&
@@ -31,6 +31,21 @@ health:           ## Data freshness in the terminal
 
 analisi:          ## Regime, scenarios, convergence (AS_OF=YYYY-MM-DD for a past date)
 	$(BACK) $(UV) run python -m app.cli analisi $(if $(AS_OF),--as-of $(AS_OF))
+
+previsioni:       ## Prediction registry: list
+	$(BACK) $(UV) run python -m app.cli previsioni list
+
+previsione:       ## One prediction with its event log (ID=P-0001)
+	$(BACK) $(UV) run python -m app.cli previsioni show $(ID)
+
+previsioni-verifica: ## Check open predictions against prices now
+	$(BACK) $(UV) run python -m app.cli previsioni verifica
+
+previsioni-importa: ## Rebuild the registry from registro/*.json (keeps original dates)
+	$(BACK) $(UV) run python -m app.cli previsioni importa
+
+track-record:     ## Hit rates, Brier score, calibration
+	$(BACK) $(UV) run python -m app.cli track-record
 
 test:
 	$(BACK) $(UV) run pytest -q

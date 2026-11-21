@@ -6,7 +6,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.config import get_settings
+from app.db import session_scope
 from app.ingest import run_all
+from app.predictions.service import verify
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +19,13 @@ def _job() -> None:
         log.info("Scheduled ingest finished: %s → %s", report["started_at"], report["finished_at"])
     except Exception:
         log.exception("Scheduled ingest failed")
+    try:
+        with session_scope() as s:
+            for r in verify(s):
+                log.info("Prediction %s: %s %s", r["id"], r.get("status", r.get("error")),
+                         "; ".join(r.get("new_events", [])))
+    except Exception:
+        log.exception("Prediction verification failed")
 
 
 def start_scheduler() -> BackgroundScheduler:

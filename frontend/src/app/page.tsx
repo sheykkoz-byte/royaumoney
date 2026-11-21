@@ -21,20 +21,75 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export const dynamic = "force-dynamic";
 
-async function getHealth(): Promise<DataHealth | null> {
+type Target = { label: string; status: string; trigger: number; deadline: string; hit_on: string | null; hit_price: number | null };
+type Prediction = {
+  id: string; title: string; asset: string; status: string; entry_price: number;
+  created_at: string; resolved_on: string | null; last_bar_date: string | null;
+  targets: Target[]; extremes: { high?: number; low?: number; last_close?: number } | null;
+};
+type Group = { total: number; open: number; resolved: number; hit: number; hit_rate: number | null };
+type TrackRecord = { overall: Group; brier: { score: number | null; n: number } };
+
+async function get<T>(path: string): Promise<T | null> {
   try {
-    const r = await fetch(`${API}/health/data`, { cache: "no-store" });
+    const r = await fetch(`${API}${path}`, { cache: "no-store" });
     return r.ok ? r.json() : null;
   } catch {
     return null;
   }
 }
 
+const STATUS_CLASS: Record<string, string> = {
+  aperta: "yellow", colpita: "green", invalidata: "red", scaduta: "red",
+  raggiunta: "green", attiva: "yellow", mancata: "red", "in attesa": "idle",
+};
+
+function TrackRecordPanel({ tr, preds }: { tr: TrackRecord; preds: Prediction[] }) {
+  const o = tr.overall;
+  return (
+    <section className="block">
+      <h2>TRACK RECORD</h2>
+      <p className="sub">
+        {o.total} previsioni · {o.open} aperte · {o.resolved} chiuse
+        {o.hit_rate !== null && <> · successo {(o.hit_rate * 100).toFixed(0)}%</>}
+        {tr.brier.score !== null && <> · Brier {tr.brier.score.toFixed(3)} (su {tr.brier.n})</>}
+      </p>
+      {preds.map((p) => (
+        <div key={p.id} className="pred">
+          <div className="pred-head">
+            <span className={`dot ${STATUS_CLASS[p.status] ?? ""}`} />
+            <b className="num">{p.id}</b> <span>{p.title}</span>
+            <span className="tag">{p.status}</span>
+          </div>
+          <div className="sub">
+            {p.asset} · ingresso {p.entry_price} · registrata {p.created_at.slice(0, 10)}
+            {p.extremes?.last_close !== undefined && <> · ultima chiusura {p.extremes.last_close} (max {p.extremes.high}, min {p.extremes.low})</>}
+            {p.last_bar_date ? <> · verificata al {p.last_bar_date}</> : <> · in attesa del primo prezzo</>}
+          </div>
+          <ol>
+            {p.targets.map((t) => (
+              <li key={t.label}>
+                <span className={`dot ${STATUS_CLASS[t.status] ?? ""}`} /> {t.label}: {t.trigger} entro {t.deadline}
+                {t.hit_on && <> → {t.hit_on} a {t.hit_price}</>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default async function Home() {
-  const h = await getHealth();
+  const [h, tr, preds] = await Promise.all([
+    get<DataHealth>("/health/data"),
+    get<TrackRecord>("/track-record"),
+    get<Prediction[]>("/previsioni"),
+  ]);
   return (
     <main>
       <h1>ROYAUMONEY · JARVIS</h1>
+      {tr && preds && <TrackRecordPanel tr={tr} preds={preds} />}
       {!h ? (
         <p className="sub">Backend non raggiungibile su {API}. Avvialo con <code>make dev</code>.</p>
       ) : (
