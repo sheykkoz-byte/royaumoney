@@ -77,15 +77,22 @@ Backend vero, dati scaricati con `make ingest` (44 serie verdi su 45, XLE senza 
 - **Script di avvio dell'ambiente:** ora lancia anche l'ingest (log in `/tmp/ingest.log`; se fallisce la sessione parte lo stesso).
 - **Da fare:** collaudo del cervello Claude con la chiave vera. La variabile `ANTHROPIC_API_KEY` è nell'ambiente `royaumoney` ma una sessione la legge solo se nasce dopo che è stata aggiunta.
 
-## Artefatto (pagina da provare senza backend)
+## Artefatto (Jarvis senza backend e senza chiavi)
 
-`frontend/artifact/`: l'interfaccia vera (sfera, grafici, schede, voce) impacchettata in un'unica pagina. Una finta WebSocket (`fake-ws.ts`) risponde con le risposte registrate dal backend (`record.py`: una per intento del cervello dimostrativo, con audio ElevenLabs) e smista le domande con le stesse regole di `demo.INTENTS`. Il microfono usa la dettatura della piattaforma (`mic.ts`, capacità `dictation`): funziona su Chrome e nell'app desktop di Claude, non su Safari, Firefox o le app per telefono. Da pubblicare con `capabilities: {dictation: {}}`.
+`frontend/artifact/`: l'interfaccia vera (sfera, grafici, schede) impacchettata in un'unica pagina pubblicata come artefatto claude.ai. Una finta WebSocket (`fake-ws.ts`) sostituisce il backend:
 
-Per rigenerarla con dati nuovi (backend acceso su :8000):
+- **Cervello Claude sull'account di chi guarda** (`brain.ts`, capacità `sample`): nessuna chiave API. Stesso prompt di `claude_brain.py` (adattato: dati nel prompt, niente registrazione, niente correlazione), stesso copione JSON. I dati sono i risultati degli strumenti di `tools.py` registrati in `data.json` da `record_data.py`: 45 serie con tutti i periodi, regime, scenari, previsioni, track record. Il direttore di scena è portato in JavaScript: scarta i numeri che non vengono dai dati, allinea le parole, allega i dati ai grafici. Memoria: ultime 4 domande.
+- **Voce di Claude** (`tts-voice.ts`, capacità `tts`) al posto della sintesi del browser: una frase per riga, le scene partono all'inizio della frase e avanzano a ≈14 caratteri al secondo.
+- **Microfono** (`mic.ts`, capacità `dictation`): funziona su Chrome e nell'app desktop di Claude, non su Safari, Firefox o le app per telefono.
+- **Ripiego**: se Claude non è disponibile o non è autorizzato, risponde il cervello dimostrativo con le risposte registrate dal backend (`snapshot.json`, `record.py`, voce ElevenLabs), e l'interfaccia lo segnala.
+
+Test: `frontend/artifact/test.sh DATA_JSON` (direttore, controllo dei numeri, adattamenti del prompt, dimensione del prompt). Rigenerare con dati nuovi (backend acceso su :8000):
 
 ```bash
 frontend/artifact/build.sh /percorso/uscita
 ```
+
+Pubblicare `index.html` con `app.js`, `snapshot.json`, `data.json` e le capacità `{sample: {}, tts: {}, dictation: {}}`.
 
 ## Note sui dati mostrati
 
