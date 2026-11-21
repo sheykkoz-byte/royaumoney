@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis · Market Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg:#05060c; --panel:rgba(16,18,34,.62); --line:rgba(150,140,255,.16);
+    --text:#e9ebff; --muted:#8a8fb4; --violet:#8b7cff; --cyan:#5fe1ff;
+    --green:#3ddc97; --red:#ff5d73; --amber:#ffc35a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;overflow:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;
+    background:
+      radial-gradient(60% 50% at 50% 42%, rgba(110,90,255,.18), transparent 70%),
+      radial-gradient(40% 40% at 80% 90%, rgba(60,200,255,.07), transparent 70%);
+  }
+  .grid-bg{position:fixed;inset:0;pointer-events:none;opacity:.35;
+    background-image:linear-gradient(rgba(140,130,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(140,130,255,.05) 1px,transparent 1px);
+    background-size:48px 48px;mask-image:radial-gradient(circle at 50% 45%,#000 20%,transparent 75%)}
+
+  header{position:fixed;top:0;left:0;right:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:20}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:600;letter-spacing:.18em;font-size:14px}
+  .brand-dot{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--violet) 45%,#2a1d7a);box-shadow:0 0 18px var(--violet)}
+  .brand small{display:block;font-size:10px;color:var(--muted);letter-spacing:.12em;font-weight:400}
+  .status{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+    border:1px solid var(--line);padding:7px 12px;border-radius:999px;background:var(--panel);backdrop-filter:blur(10px)}
+  .status i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .status.listen i{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+  .status.speak i{background:var(--violet);box-shadow:0 0 10px var(--violet)}
+  .status.think i{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+
+  main{position:fixed;inset:64px 0 0 0;display:grid;grid-template-columns:340px 1fr 340px;gap:20px;padding:12px 24px 120px}
+  .col{display:flex;flex-direction:column;gap:16px;overflow-y:auto;scrollbar-width:none;z-index:5;padding-bottom:12px}
+  .col::-webkit-scrollbar{display:none}
+  #stage{position:relative;min-height:300px}
+  #orb{position:absolute;inset:0;width:100%;height:100%}
+  #links{position:fixed;inset:0;pointer-events:none;z-index:2;width:100%;height:100%}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;backdrop-filter:blur(14px);
+    transition:border-color .4s, box-shadow .4s, transform .4s;position:relative}
+  .panel.focus{border-color:rgba(139,124,255,.7);box-shadow:0 0 0 1px rgba(139,124,255,.3),0 0 40px rgba(110,90,255,.25);transform:translateY(-2px)}
+  .p-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .p-title{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .tag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .tag.red{color:var(--red);border-color:rgba(255,93,115,.35)}
+  .tag.amber{color:var(--amber);border-color:rgba(255,195,90,.35)}
+  .tag.green{color:var(--green);border-color:rgba(61,220,151,.35)}
+  .big{font-size:30px;font-weight:600;letter-spacing:-.01em}
+  .big span{font-size:13px;color:var(--red);margin-left:8px;font-weight:500}
+  .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  canvas.chart{width:100%;height:170px;display:block;margin-top:10px}
+  .levels{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .lv{border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+  .lv b{display:block;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500}
+  .lv small{font-size:10px;color:var(--muted);letter-spacing:.06em}
+
+  .gauge-wrap{display:flex;align-items:center;gap:16px}
+  .gauge{width:120px;height:120px;flex-shrink:0}
+  .kv{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid rgba(150,140,255,.08)}
+  .kv:last-child{border-bottom:none}
+  .kv span{color:var(--muted)}
+  .kv b{font-family:'JetBrains Mono',monospace;font-weight:500}
+  .bar{height:4px;border-radius:4px;background:rgba(255,255,255,.06);margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--violet),var(--cyan))}
+
+  .ev{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(150,140,255,.08)}
+  .ev:last-child{border-bottom:none}
+  .ev .d{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace}
+  .ev .d b{font-size:16px;line-height:1}
+  .ev .d small{font-size:9px;color:var(--muted);letter-spacing:.1em}
+  .ev.hot .d{border-color:rgba(139,124,255,.6);box-shadow:0 0 16px rgba(139,124,255,.25)}
+  .ev p{font-size:13px}
+  .ev p small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .ev .cd{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan)}
+
+  .steps{position:relative;padding-left:18px}
+  .steps::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:linear-gradient(var(--green),var(--red),var(--green))}
+  .st{position:relative;padding:6px 0 10px}
+  .st::before{content:"";position:absolute;left:-17px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--bg);border:2px solid var(--violet)}
+  .st b{font-size:13px;font-weight:600}
+  .st p{font-size:12px;color:var(--muted);margin-top:2px}
+  .inv{margin-top:8px;font-size:11px;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px}
+  .inv b{color:var(--amber);font-weight:500}
+
+  /* transcript */
+  #transcript{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:min(560px,92%);text-align:center;z-index:6;pointer-events:none}
+  #you{font-size:12px;color:var(--cyan);font-family:'JetBrains Mono',monospace;min-height:16px;margin-bottom:6px;opacity:.9}
+  #reply{font-size:16px;line-height:1.5;color:var(--text);text-shadow:0 0 24px rgba(5,6,12,.9);min-height:48px}
+
+  /* input */
+  .dock{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);width:min(680px,calc(100% - 32px));z-index:30}
+  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+  .chip{font:inherit;font-size:12px;color:var(--text);background:rgba(20,22,40,.7);border:1px solid var(--line);padding:7px 12px;border-radius:999px;cursor:pointer;backdrop-filter:blur(10px);transition:.2s}
+  .chip:hover{border-color:rgba(139,124,255,.6)}
+  .bar-in{display:flex;align-items:center;gap:10px;background:rgba(14,16,30,.85);border:1px solid rgba(150,140,255,.28);border-radius:999px;padding:7px 7px 7px 20px;backdrop-filter:blur(16px);box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  .bar-in input{flex:1;background:none;border:none;outline:none;color:var(--text);font:inherit;font-size:15px}
+  .bar-in input::placeholder{color:var(--muted)}
+  .btn{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+  .btn svg{width:20px;height:20px}
+  #mic{background:linear-gradient(135deg,var(--violet),#5a49d6);color:#fff;box-shadow:0 0 20px rgba(139,124,255,.5)}
+  #mic.on{background:linear-gradient(135deg,var(--cyan),#2a9ac0);box-shadow:0 0 28px rgba(95,225,255,.7);animation:pulse 1.2s infinite}
+  #send{background:rgba(255,255,255,.06);color:var(--text)}
+  @keyframes pulse{50%{transform:scale(1.08)}}
+  #toast{position:fixed;left:50%;top:76px;transform:translateX(-50%) translateY(-20px);opacity:0;transition:.35s;z-index:40;
+    background:rgba(20,22,40,.95);border:1px solid rgba(255,195,90,.4);color:var(--text);font-size:13px;padding:10px 16px;border-radius:12px;max-width:min(520px,90%);text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .foot{position:fixed;right:24px;bottom:8px;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;z-index:25;opacity:.7}
+
+  @media (max-width:1100px){
+    html,body{overflow:auto}
+    main{position:relative;inset:auto;display:flex;flex-direction:column;padding:56px 14px 190px;gap:16px}
+    #stage{position:sticky;top:56px;height:42vh;min-height:300px;order:-1;z-index:10;
+      background:radial-gradient(70% 70% at 50% 45%,rgba(40,30,110,.35),rgba(5,6,12,0) 75%),var(--bg);margin:0 -14px;
+      box-shadow:0 18px 24px -8px var(--bg)}
+    .col{overflow:visible}
+    .panel{scroll-margin-top:calc(42vh + 72px);scroll-margin-bottom:200px}
+    #links{display:none}
+    header{height:56px;background:var(--bg);padding:0 14px}
+    .brand small{display:none}
+    .status{white-space:nowrap;padding:6px 10px;font-size:10px}
+    .dock{bottom:0;padding:24px 0 14px;width:100%;padding-left:12px;padding-right:12px;background:linear-gradient(rgba(5,6,12,0),var(--bg) 40%)}
+    .chips{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
+    .chip{flex-shrink:0}
+    .foot{display:none}
+    #transcript{bottom:0}
+    #reply{font-size:14px;min-height:42px;padding:0 8px}
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<svg id="links"></svg>
+
+<header>
+  <div class="brand"><div class="brand-dot"></div><div>JARVIS<small>MARKET INTELLIGENCE · YOUSEF</small></div></div>
+  <div class="status" id="status"><i></i><span id="statusTxt">PRONTO</span></div>
+</header>
+
+<main>
+  <section class="col" id="left">
+    <div class="panel" id="p-gold" data-topic="oro">
+      <div class="p-head"><div class="p-title">XAU/USD · Settimanale</div><div class="tag red">−36,8% dal picco</div></div>
+      <div class="big">3.537,87<span>chiusura sett.</span></div>
+      <div class="sub">Massimo storico 5.598,75 · 29 gen 2026</div>
+      <canvas class="chart" id="goldChart"></canvas>
+      <div class="levels">
+        <div class="lv"><small>RESISTENZA</small><b style="color:var(--amber)">3.757</b></div>
+        <div class="lv"><small>SUPPORTO · OMBRA 2025</small><b style="color:var(--cyan)">3.498</b></div>
+        <div class="lv"><small>TARGET LIQUIDITÀ</small><b>3.380–3.420</b></div>
+        <div class="lv"><small>INVALIDAZIONE</small><b style="color:var(--red)">&lt; 3.300</b></div>
+      </div>
+    </div>
+
+    <div class="panel" id="p-scen" data-topic="scenario">
+      <div class="p-head"><div class="p-title">Scenario operativo</div><div class="tag">Yousef + Jarvis</div></div>
+      <div class="steps">
+        <div class="st"><b>1 · Rimbalzo → 3.720–3.760</b><p>Fino alla Fed: colma l'inefficienza lasciata dal crollo.</p></div>
+        <div class="st"><b>2 · Fed + CPI → 3.380–3.420</b><p>9–10 dic: presa di liquidità sotto 3.498.</p></div>
+        <div class="st"><b>3 · Gennaio → 3.900–4.000</b><p>Ripartenza per l'anno nuovo.</p></div>
+      </div>
+      <div class="inv">Smentite: chiusura sett. <b>sopra 3.800</b> prima della Fed · chiusura sett. <b>sotto 3.300</b></div>
+    </div>
+  </section>
+
+  <section id="stage">
+    <canvas id="orb"></canvas>
+    <div id="transcript"><div id="you"></div><div id="reply">Ciao Yousef. Tocca il microfono o scrivimi.</div></div>
+  </section>
+
+  <section class="col" id="right">
+    <div class="panel" id="p-fed" data-topic="fed">
+      <div class="p-head"><div class="p-title">FOMC · 8–9 dicembre</div><div class="tag amber">Rialzo atteso</div></div>
+      <div class="gauge-wrap">
+        <svg class="gauge" viewBox="0 0 120 120">
+          <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#8b7cff"/><stop offset="1" stop-color="#5fe1ff"/></linearGradient></defs>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="9"/>
+          <circle id="gArc" cx="60" cy="60" r="50" fill="none" stroke="url(#gg)" stroke-width="9" stroke-linecap="round"
+            stroke-dasharray="314.16" stroke-dashoffset="314.16" transform="rotate(-90 60 60)" style="transition:stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1)"/>
+          <text x="60" y="60" text-anchor="middle" fill="#e9ebff" font-size="26" font-weight="600" font-family="Space Grotesk">78%</text>
+          <text x="60" y="78" text-anchor="middle" fill="#8a8fb4" font-size="9" letter-spacing="1.5" font-family="Space Grotesk">+25 PB</text>
+        </svg>
+        <div style="flex:1">
+          <div class="kv"><span>Tassi attuali</span><b>3,75–4,00%</b></div>
+          <div class="kv"><span>Dopo un rialzo</span><b>4,00–4,25%</b></div>
+          <div class="kv"><span>Pausa</span><b>~22%</b></div>
+        </div>
+      </div>
+      <div class="inv">Già scontato: decidono <b>dot plot</b> e tono di Powell.</div>
+    </div>
+
+    <div class="panel" id="p-jobs" data-topic="lavoro">
+      <div class="p-head"><div class="p-title">Mercato del lavoro USA</div><div class="tag green">Solido</div></div>
+      <div class="kv"><span>Payroll ottobre</span><b style="color:var(--green)">+165k <small style="color:var(--muted)">vs 59k</small></b></div>
+      <div class="kv"><span>Disoccupazione</span><b>4,1%</b></div>
+      <div class="kv"><span>Salari a/a</span><b>+3,1%</b></div>
+      <div class="kv"><span>Richieste iniziali</span><b>203k</b></div>
+      <div class="kv"><span>Richieste continuative</span><b style="color:var(--amber)">1,763M ▲</b></div>
+      <div class="bar"><i style="width:82%"></i></div>
+      <div class="sub" style="margin-top:6px">Soglia d'allarme continuative 1,75M — superata. Iniziali lontane da 230k.</div>
+    </div>
+
+    <div class="panel" id="p-cal" data-topic="calendario">
+      <div class="p-head"><div class="p-title">Catalizzatori</div><div class="tag">Dicembre</div></div>
+      <div class="ev" data-date="2026-12-04"><div class="d"><b>04</b><small>DIC</small></div><p>Payroll novembre<small>Unica via verso la pausa</small></p><div class="cd"></div></div>
+      <div class="ev hot" data-date="2026-12-09"><div class="d"><b>09</b><small>DIC</small></div><p>Decisione Fed + dot plot<small>Conferenza Powell</small></p><div class="cd"></div></div>
+      <div class="ev" data-date="2026-12-10"><div class="d"><b>10</b><small>DIC</small></div><p>CPI novembre<small>Esce dopo le proiezioni Fed</small></p><div class="cd"></div></div>
+    </div>
+  </section>
+</main>
+
+<div class="dock">
+  <div class="chips">
+    <button class="chip" data-q="Come sta l'oro?">Come sta l'oro?</button>
+    <button class="chip" data-q="Cosa farà la Fed?">Cosa farà la Fed?</button>
+    <button class="chip" data-q="Dati sul lavoro">Dati sul lavoro</button>
+    <button class="chip" data-q="Qual è il mio scenario?">Il mio scenario</button>
+  </div>
+  <form class="bar-in" id="form">
+    <input id="q" placeholder="Chiedi a Jarvis…" autocomplete="off">
+    <button type="submit" class="btn" id="send" aria-label="Invia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    <button type="button" class="btn" id="mic" aria-label="Parla"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+  </form>
+</div>
+<div id="toast"></div>
+<div class="foot">PROTOTIPO · DATI AL 21/11/2026 · NON LIVE</div>
+
+<script>
+/* ============ ORB (Three.js) ============ */
+const orbCanvas = document.getElementById('orb');
+const stage = document.getElementById('stage');
+let level = 0, target = 0, mode = 'idle'; // idle | listen | speak | think
+let micLevel = 0, speakEnv = 0, spike = 0;
+
+const renderer = new THREE.WebGLRenderer({canvas:orbCanvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45,1,.1,100);
+camera.position.z = 4.2;
+
+// fibonacci sphere points
+const N = 7000, pos = new Float32Array(N*3), rnd = new Float32Array(N);
+for(let i=0;i<N;i++){
+  const y = 1 - (i/(N-1))*2, r = Math.sqrt(1-y*y), th = i*2.399963;
+  pos[i*3]=Math.cos(th)*r; pos[i*3+1]=y; pos[i*3+2]=Math.sin(th)*r; rnd[i]=Math.random();
+}
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+geo.setAttribute('aRnd', new THREE.BufferAttribute(rnd,1));
+const uni = {uTime:{value:0}, uAmp:{value:0}, uMode:{value:0}};
+const mat = new THREE.ShaderMaterial({
+  uniforms:uni, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+  vertexShader:`
+    uniform float uTime; uniform float uAmp; attribute float aRnd; varying float vGlow; varying float vY;
+    float n3(vec3 p){ return sin(p.x*3.1+uTime*1.1)*sin(p.y*3.7+uTime*1.3)*sin(p.z*2.9+uTime*.9); }
+    void main(){
+      vec3 p = position;
+      float n = n3(p*1.4) + .5*n3(p*3.2+4.);
+      float d = .04 + n*(.05 + uAmp*.38) + aRnd*uAmp*.08;
+      p *= 1. + d;
+      vGlow = .45 + n*.5 + uAmp*.6; vY = position.y;
+      vec4 mv = modelViewMatrix*vec4(p,1.);
+      gl_PointSize = (1.6 + aRnd*1.8 + uAmp*2.2) * (3.2/ -mv.z) * 1.6;
+      gl_Position = projectionMatrix*mv;
+    }`,
+  fragmentShader:`
+    uniform float uMode; varying float vGlow; varying float vY;
+    void main(){
+      float d = length(gl_PointCoord-.5); if(d>.5) discard;
+      float a = smoothstep(.5,0.,d);
+      vec3 violet = vec3(.55,.48,1.), cyan = vec3(.37,.88,1.), pink = vec3(.95,.45,1.);
+      vec3 c = mix(violet, cyan, smoothstep(-1.,1.,vY));
+      c = mix(c, pink, clamp(uMode,0.,1.)*.25*(1.-vY));
+      gl_FragColor = vec4(c*vGlow, a*.85);
+    }`
+});
+const sphere = new THREE.Points(geo, mat);
+scene.add(sphere);
+
+// core glow
+const coreTex = (()=>{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(200,190,255,.9)');gr.addColorStop(.3,'rgba(130,110,255,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c);})();
+const core = new THREE.Sprite(new THREE.SpriteMaterial({map:coreTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+core.scale.set(2.2,2.2,1); scene.add(core);
+
+// HUD rings
+const rings = [];
+[[1.55,.0025,.35],[1.75,.0015,.18],[1.95,.002,.1]].forEach(([r,w,o],i)=>{
+  const m = new THREE.Mesh(new THREE.RingGeometry(r, r+w*6, 160, 1, 0, Math.PI*(1.2+i*.35)),
+    new THREE.MeshBasicMaterial({color:i%2?0x5fe1ff:0x8b7cff,transparent:true,opacity:o,side:THREE.DoubleSide}));
+  m.rotation.x = 1.15 + i*.12; m.rotation.y = i*.4; scene.add(m); rings.push(m);
+});
+// orbiting dust
+const DN=600, dpos=new Float32Array(DN*3);
+for(let i=0;i<DN;i++){const a=Math.random()*Math.PI*2,r=2.1+Math.random()*1.2,h=(Math.random()-.5)*.6;dpos[i*3]=Math.cos(a)*r;dpos[i*3+1]=h;dpos[i*3+2]=Math.sin(a)*r;}
+const dgeo=new THREE.BufferGeometry();dgeo.setAttribute('position',new THREE.BufferAttribute(dpos,3));
+const dust=new THREE.Points(dgeo,new THREE.PointsMaterial({color:0x9d92ff,size:.018,transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));
+dust.rotation.x=.35; scene.add(dust);
+
+function resize(){
+  const w=stage.clientWidth,h=stage.clientHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h;
+  camera.position.z = w<520 ? 5.2 : 4.2;
+  camera.updateProjectionMatrix(); drawLinks(); drawGold();
+}
+addEventListener('resize',resize);
+
+const clock = new THREE.Clock();
+function loop(){
+  const t = clock.getElapsedTime();
+  if(mode==='listen') target = Math.min(1, micLevel*4.5);
+  else if(mode==='speak') target = speakEnv;
+  else if(mode==='think') target = .18 + .08*Math.sin(t*6);
+  else target = .04 + .03*Math.sin(t*1.4);
+  if(mode==='speak'){
+    spike *= .9;
+    speakEnv = Math.min(1, .22 + .28*Math.abs(Math.sin(t*7.3))*Math.abs(Math.sin(t*2.1+1)) + spike);
+  }
+  level += (target-level)*(target>level?.35:.08);
+  uni.uTime.value = t; uni.uAmp.value = level;
+  uni.uMode.value += ((mode==='speak'?1:0)-uni.uMode.value)*.05;
+  sphere.rotation.y = t*.12; sphere.rotation.x = Math.sin(t*.2)*.15;
+  const s = 1 + level*.12; sphere.scale.set(s,s,s);
+  core.material.opacity = .55 + level*.6; core.scale.setScalar(2.2 + level*1.1);
+  rings.forEach((r,i)=>{ r.rotation.z = t*(i%2?-.25:.18)*(1+level*2); r.material.opacity = [.35,.18,.1][i] + level*.3; });
+  dust.rotation.y = -t*.05;
+  renderer.render(scene,camera);
+  linkPhase = t; updateLinkDash();
+  requestAnimationFrame(loop);
+}
+
+/* ============ NODE LINKS ============ */
+const svg = document.getElementById('links');
+let linkPhase = 0, linkEls = [];
+function drawLinks(){
+  svg.innerHTML=''; linkEls=[];
+  if(innerWidth<=1100) return;
+  const sr = stage.getBoundingClientRect(), cx = sr.left+sr.width/2, cy = sr.top+sr.height*.45;
+  document.querySelectorAll('.panel').forEach(p=>{
+    const r = p.getBoundingClientRect(); const left = r.left < cx;
+    const px = left ? r.right : r.left, py = r.top + Math.min(r.height/2, 60);
+    const ox = cx + (left?-1:1)*Math.min(160, sr.width*.25);
+    const d = `M${ox},${cy} C${(ox+px)/2},${cy} ${(ox+px)/2},${py} ${px},${py}`;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',d); path.setAttribute('fill','none'); path.setAttribute('stroke-width','1');
+    path.setAttribute('stroke-dasharray','3 7'); path.dataset.panel = p.id;
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',px); dot.setAttribute('cy',py); dot.setAttribute('r','3');
+    svg.appendChild(path); svg.appendChild(dot); linkEls.push({path,dot,id:p.id});
+  });
+  updateLinkDash();
+}
+function updateLinkDash(){
+  linkEls.forEach(({path,dot,id})=>{
+    const on = document.getElementById(id).classList.contains('focus');
+    path.setAttribute('stroke', on ? 'rgba(139,124,255,.85)' : 'rgba(139,124,255,.22)');
+    path.setAttribute('stroke-dashoffset', -linkPhase*(on?40:12));
+    dot.setAttribute('fill', on ? '#5fe1ff' : 'rgba(139,124,255,.5)');
+  });
+}
+document.querySelectorAll('.col').forEach(c=>c.addEventListener('scroll',drawLinks));
+
+/* ============ GOLD CHART (schematic weekly path) ============ */
+// Percorso schematico ricostruito dai livelli chiave discussi — non è un feed di prezzo
+const goldPts = [3300,3350,3420,3380,3440,3460,3600,3800,3950,4150,4300,4450,4600,4800,5050,5300,5598,5100,4500,4700,4850,4650,4450,4300,4150,4000,3990,4050,4200,4450,4650,4500,4300,4150,4050,3960,3900,3757,3537];
+function drawGold(){
+  const c = document.getElementById('goldChart'); const dpr = Math.min(devicePixelRatio,2);
+  const w = c.clientWidth, h = c.clientHeight; if(!w) return;
+  c.width=w*dpr; c.height=h*dpr; const g=c.getContext('2d'); g.scale(dpr,dpr);
+  const min=3150,max=5700, X=i=>i/(goldPts.length-1)*(w-44), Y=v=>h-6-(v-min)/(max-min)*(h-12);
+  // levels
+  [[3757,'#ffc35a','3.757'],[3498,'#5fe1ff','3.498'],[3300,'#ff5d73','3.300']].forEach(([v,col,l])=>{
+    g.strokeStyle=col+'88'; g.setLineDash([3,4]); g.lineWidth=1; g.beginPath(); g.moveTo(0,Y(v)); g.lineTo(w-44,Y(v)); g.stroke();
+    g.setLineDash([]); g.fillStyle=col; g.font='500 9px JetBrains Mono'; g.fillText(l,w-40,Y(v)+3);
+  });
+  // area
+  const grad=g.createLinearGradient(0,0,0,h); grad.addColorStop(0,'rgba(139,124,255,.35)'); grad.addColorStop(1,'rgba(139,124,255,0)');
+  g.beginPath(); goldPts.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v)));
+  g.lineTo(X(goldPts.length-1),h); g.lineTo(0,h); g.closePath(); g.fillStyle=grad; g.fill();
+  g.beginPath(); goldPts.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v)));
+  const lg=g.createLinearGradient(0,0,w,0); lg.addColorStop(0,'#8b7cff'); lg.addColorStop(.45,'#5fe1ff'); lg.addColorStop(1,'#ff5d73');
+  g.strokeStyle=lg; g.lineWidth=1.8; g.stroke();
+  // projected scenario
+  const n=goldPts.length-1, proj=[[n,3537],[n+2.5,3740],[n+4.5,3400],[n+7,3950]];
+  const Xp=i=>i/(goldPts.length+6)*(w-44);
+  g.save(); g.setLineDash([2,3]); g.strokeStyle='rgba(233,235,255,.55)'; g.lineWidth=1.2; g.beginPath();
+  // rescale so projection fits
+  proj.forEach(([i,v],k)=>{ const x=Math.min(w-46, X(n)+(i-n)*(w-44)/(goldPts.length+6)); k?g.lineTo(x,Y(v)):g.moveTo(x,Y(v)); });
+  g.stroke(); g.restore();
+  // ATH + last dot
+  const ai=goldPts.indexOf(5598); g.fillStyle='#e9ebff'; g.font='500 9px JetBrains Mono'; g.fillText('ATH 5.598',X(ai)-24,Y(5598)-5);
+  g.beginPath(); g.arc(X(n),Y(3537),3.5,0,7); g.fillStyle='#ff5d73'; g.fill();
+  g.beginPath(); g.arc(X(n),Y(3537),7,0,7); g.strokeStyle='rgba(255,93,115,.4)'; g.stroke();
+}
+
+/* ============ COUNTDOWNS + GAUGE ============ */
+function countdowns(){
+  const now = new Date();
+  document.querySelectorAll('.ev').forEach(e=>{
+    const d = new Date(e.dataset.date+'T14:30:00+01:00'); const days = Math.ceil((d-now)/864e5);
+    e.querySelector('.cd').textContent = days>0 ? `−${days}g` : (days===0?'OGGI':'fatto');
+  });
+}
+setTimeout(()=>document.getElementById('gArc').style.strokeDashoffset = 314.16*(1-.78), 400);
+
+/* ============ BRAIN (prototype intents) ============ */
+const KB = {
+  saluto:{panel:null, text:"Ciao Yousef. Sono operativo. Chiedimi dell'oro, della Fed, del lavoro, del calendario o del tuo scenario."},
+  oro:{panel:'p-gold', text:"L'oro ha chiuso la settimana a 3.537 dollari, circa il 37% sotto il massimo storico di 5.598 di gennaio. Il prezzo si è fermato sulla tua linea a 3.498, l'ombra massima della congestione del 2025. Finché le chiusure settimanali restano sopra 3.500, mi aspetto il rimbalzo verso 3.750."},
+  fed:{panel:'p-fed', text:"La Fed decide l'8 e 9 dicembre. Il mercato prezza circa il 78% di probabilità di un rialzo di 25 punti base, con i tassi oggi tra 3,75 e 4%. Il rialzo è quasi scontato: conteranno il dot plot e il tono di Powell. Se segnalano altri rialzi nel 2027, l'oro scende verso 3.400."},
+  lavoro:{panel:'p-jobs', text:"Il lavoro americano è solido. A ottobre 165 mila posti contro attese di 59 mila, disoccupazione al 4,1%. Le richieste iniziali sono a 203 mila, vicino ai minimi da 57 anni. L'unica crepa sono le continuative, salite a 1,76 milioni. Per una pausa della Fed servirebbe una sorpresa negativa il 4 dicembre."},
+  calendario:{panel:'p-cal', text:"Le date chiave sono tre. Il 4 dicembre il report sul lavoro di novembre. Il 9 la decisione della Fed con il dot plot. Il 10 l'inflazione CPI di novembre, che esce dopo le proiezioni della Fed."},
+  scenario:{panel:'p-scen', text:"Il tuo scenario: rimbalzo verso 3.720-3.760 fino alla Fed, poi spinta ribassista verso 3.380-3.420 per prendere la liquidità sotto 3.498, e da gennaio ripartenza verso 3.900-4.000. Lo smentisce una chiusura settimanale sopra 3.800 o sotto 3.300."},
+  fallback:{panel:null, text:"Nel prototipo conosco oro, Fed, lavoro, calendario e il tuo scenario. Quando collegheremo il modello AI e i dati live potrò rispondere a tutto."}
+};
+function intent(q){
+  q = q.toLowerCase();
+  if(/scenari|previsi|piano|strategi|target|obiettiv/.test(q)) return 'scenario';
+  if(/\boro\b|gold|xau|prezzo/.test(q)) return 'oro';
+  if(/fed|tass|powell|fomc|rialz/.test(q)) return 'fed';
+  if(/lavor|payroll|occupaz|disoccup|sussid|jobs/.test(q)) return 'lavoro';
+  if(/calendar|quando|date|data|cpi|inflaz/.test(q)) return 'calendario';
+  if(/ciao|ehi|hey|buon|jarvis/.test(q)) return 'saluto';
+  return 'fallback';
+}
+
+const statusEl = document.getElementById('status'), statusTxt = document.getElementById('statusTxt');
+function setMode(m){
+  mode = m; statusEl.className = 'status ' + ({listen:'listen',speak:'speak',think:'think'}[m]||'');
+  statusTxt.textContent = {idle:'PRONTO',listen:'IN ASCOLTO',speak:'JARVIS PARLA',think:'ELABORO'}[m];
+}
+function focusPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('focus', p.id===id));
+  if(id && innerWidth<=1100) document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+const replyEl = document.getElementById('reply'), youEl = document.getElementById('you');
+let typer;
+function typeOut(text, ms){
+  clearInterval(typer); replyEl.textContent=''; let i=0;
+  const step = Math.max(12, ms/text.length);
+  typer = setInterval(()=>{ replyEl.textContent = text.slice(0, ++i); if(i>=text.length) clearInterval(typer); }, step);
+}
+
+let itVoice = null;
+function pickVoice(){ const vs = speechSynthesis.getVoices(); itVoice = vs.find(v=>/it[-_]IT/i.test(v.lang) && /google|luca|alice|federica|neural/i.test(v.name)) || vs.find(v=>/^it/i.test(v.lang)) || null; }
+if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+
+function speak(text){
+  setMode('speak');
+  const estMs = text.length*62;
+  typeOut(text, estMs*.92);
+  let ended = false;
+  const finish = ()=>{ if(ended) return; ended=true; setMode('idle'); };
+  try{
+    if(!('speechSynthesis' in window)) throw 0;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang='it-IT'; if(itVoice) u.voice=itVoice; u.rate=1.04; u.pitch=.95;
+    u.onboundary = ()=>{ spike = .55 + Math.random()*.35; };
+    u.onend = finish; u.onerror = ()=>setTimeout(finish, estMs);
+    speechSynthesis.speak(u);
+    setTimeout(finish, estMs*1.8); // safety
+  }catch(e){ setTimeout(finish, estMs); }
+}
+
+function ask(q){
+  q = q.trim(); if(!q) return;
+  youEl.textContent = '› ' + q;
+  setMode('think'); focusPanel(null);
+  const k = intent(q), r = KB[k];
+  setTimeout(()=>{ focusPanel(r.panel); speak(r.text); }, 650);
+}
+
+document.getElementById('form').addEventListener('submit', e=>{ e.preventDefault(); const i=document.getElementById('q'); ask(i.value); i.value=''; });
+document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>ask(b.dataset.q)));
+document.getElementById('q').addEventListener('input',()=>{ if(mode==='idle'){ spike=0; level = Math.min(.35, level+.12);} });
+
+/* ============ VOICE INPUT ============ */
+const micBtn = document.getElementById('mic');
+let rec = null, stream = null, analyser = null, raf = null;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),5200); }
+
+async function startMic(){
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const buf = new Uint8Array(analyser.fftSize);
+    const tick = ()=>{ analyser.getByteTimeDomainData(buf); let s=0; for(const v of buf){const x=(v-128)/128; s+=x*x;} micLevel=Math.sqrt(s/buf.length); raf=requestAnimationFrame(tick); };
+    tick();
+  }catch(e){
+    toast("Microfono bloccato in questa anteprima. Apri il file su Chrome dal PC per la voce: qui puoi scrivere.");
+    document.getElementById('q').focus(); return;
+  }
+  setMode('listen'); micBtn.classList.add('on'); youEl.textContent='› …';
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast("Il riconoscimento vocale funziona su Chrome. La sfera reagisce comunque alla tua voce."); setTimeout(stopMic, 6000); return; }
+  rec = new SR(); rec.lang='it-IT'; rec.interimResults=true; rec.continuous=false;
+  let finalTxt = '';
+  rec.onresult = ev=>{ let s=''; for(const r of ev.results){ s+=r[0].transcript; if(r.isFinal) finalTxt=s; } youEl.textContent='› '+s; };
+  rec.onend = ()=>{ stopMic(); if(finalTxt) ask(finalTxt); else if(mode==='listen') setMode('idle'); };
+  rec.onerror = ()=>{ stopMic(); };
+  rec.start();
+}
+function stopMic(){
+  micBtn.classList.remove('on'); cancelAnimationFrame(raf); micLevel=0;
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  if(rec){ try{rec.stop();}catch(e){} rec=null; }
+  if(mode==='listen') setMode('idle');
+}
+micBtn.addEventListener('click', ()=> mode==='listen' ? stopMic() : startMic());
+
+/* ============ BOOT ============ */
+resize(); countdowns(); loop();
+setTimeout(drawLinks, 300);
+document.fonts && document.fonts.ready.then(()=>{ drawGold(); drawLinks(); });
+</script>
+</body>
+</html>
