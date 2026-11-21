@@ -11,17 +11,14 @@ Aggiornato al 21/11/2026. I prezzi dei fornitori cambiano spesso: prima di firma
 
 ### Avvertenze sulle serie FRED
 
-- **Spread ICE BofA (`BAMLH0A0HYM2`, `BAMLC0A0CM`)**: per licenza ICE, FRED pubblica **solo gli ultimi 3 anni** (oggi dal 21/11/2023). Questo non basta per lo z-score su 5 anni previsto in Fase 2. Le alternative sono:
-  - comprare lo storico da ICE o da un fornitore che lo redistribuisce;
-  - usare come approssimazione lo spread Moody's Baa − Treasury 10 anni (`BAA10Y` su FRED, storico lungo, ma solo investment grade);
-  - accumulare lo storico da qui in avanti, che però resta corto per anni.
+- **Spread ICE BofA (`BAMLH0A0HYM2`, `BAMLC0A0CM`)**: per licenza ICE, FRED pubblica **solo gli ultimi 3 anni** (oggi dal 21/11/2023). **Deciso (21/11/2026):** z-score su 3 anni, dichiarato nell'output, e in più lo spread Moody's Baa − Treasury 10 anni (`BAA10Y`, dal 1986, solo investment grade). L'alternativa di comprare lo storico ICE resta aperta per il prodotto commerciale.
 - **M2 Cina / bilancio PBoC**: FRED **non ha dati aggiornati**. La serie IMF `MYAGM2CNM189N` si ferma ad agosto 2019, quella OCSE al 2013. Le alternative sono:
   - **PBoC, sito ufficiale**: gratis, mensile, tabelle HTML/PDF in 100 milioni di yuan. Va estratto con uno scraper, quindi è fragile. È la fonte autorevole.
   - **BIS, Central bank total assets**: gratis, con API. Il nostro ambiente cloud oggi blocca `stats.bis.org`: va abilitato. Resta da verificare la copertura della Cina.
   - **Trading Economics, CEIC, YCharts**: **a pagamento**, con licenze per la redistribuzione.
 
   Proposta: in Fase 2 partire con Fed + BCE + BoJ, già in database, e aggiungere la Cina dalla PBoC o dalla BIS come lavoro separato.
-- **Data di pubblicazione**: senza chiave FRED il motore usa l'export CSV pubblico, che non ha lo storico delle versioni. In quel caso la data di pubblicazione dello storico è **stimata** (data di riferimento + ritardo tipico di pubblicazione, `pub_method = estimated_lag`). I dati nuovi hanno la data in cui il job li ha visti per la prima volta (`first_seen`, precisa a ±1 giorno). Con la `FRED_API_KEY` le serie che vengono riviste (M2, CPI, PCE, lavoro, sussidi) si scaricano da ALFRED con le date di pubblicazione esatte (`alfred`). **Per i backtest serve la chiave.**
+- **Data di pubblicazione**: con la chiave FRED (configurata il 21/11/2026) le serie riviste hanno date esatte da ALFRED. ALFRED però non ha la prima versione di alcune osservazioni vecchie (richieste di sussidio prima del 2009): lì la prima versione ha una data stimata. Senza chiave FRED il motore usa l'export CSV pubblico, che non ha lo storico delle versioni. In quel caso la data di pubblicazione dello storico è **stimata** (data di riferimento + ritardo tipico di pubblicazione, `pub_method = estimated_lag`). I dati nuovi hanno la data in cui il job li ha visti per la prima volta (`first_seen`, precisa a ±1 giorno). Con la `FRED_API_KEY` le serie che vengono riviste (M2, CPI, PCE, lavoro, sussidi) si scaricano da ALFRED con le date di pubblicazione esatte (`alfred`). **Per i backtest serve la chiave.**
 
 ## 2. Alternative con licenza commerciale per i prezzi
 

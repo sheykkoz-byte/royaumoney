@@ -107,6 +107,8 @@ SERIES: list[SeriesDef] = [
          "weekly", 14, 5, scale=1e-3, revised=True, notes="Week ending Saturday."),
     fred("CCSA", "Richieste continuative", "macro", "Number", "Migliaia",
          "weekly", 21, 12, scale=1e-3, revised=True, notes="Week ending Saturday."),
+    fred("INDPRO", "Produzione industriale", "macro", "Index 2017=100", "Indice 2017=100",
+         "monthly", 60, 16, revised=True),
     fred("DFF", "Fed funds effettivo", "macro", "Percent", "%", "daily", 5, 1),
     fred("T10YIE", "Inflazione attesa 10 anni (breakeven)", "macro", "Percent", "%",
          "daily", 5, 1),
@@ -116,6 +118,9 @@ SERIES: list[SeriesDef] = [
     fred("T10Y2Y", "Curva 10–2 anni", "market", "Percent", "Punti %", "daily", 5, 1),
     fred("BAMLH0A0HYM2", "Spread high yield", "market", "Percent", "%", "daily", 6, 1),
     fred("BAMLC0A0CM", "Spread investment grade", "market", "Percent", "%", "daily", 6, 1),
+    fred("BAA10Y", "Spread Baa − Treasury 10 anni", "market", "Percent", "%", "daily", 6, 1,
+         notes="Moody's Baa corporate yield minus 10y Treasury. Long history; "
+               "investment grade only. Used alongside the 3-year ICE spreads."),
     fred("DTWEXBGS", "Dollaro (indice ampio)", "market", "Index Jan 2006=100",
          "Indice gen 2006=100", "daily", 14, 7, notes="Published weekly (H.10)."),
     # ---- FX helpers (to express ECB and BoJ balance sheets in USD) -----------------------
@@ -128,6 +133,7 @@ SERIES: list[SeriesDef] = [
     yahoo("COPPER", "HG=F", "Rame (future)", "USD/libbra"),
     yahoo("OIL_WTI", "CL=F", "Petrolio WTI (future)", "USD/barile"),
     yahoo("VIX", "^VIX", "VIX", "Indice"),
+    yahoo("SPY", "SPY", "S&P 500 (ETF SPY)", "USD"),
     *[
         yahoo(t, t, f"Settore {label}", "USD")
         for t, label in [

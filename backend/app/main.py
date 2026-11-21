@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import catalog
+from app.analysis.engine import run as run_analysis
 from app.config import get_settings
 from app.db import init_db, session_scope
 from app.health import data_health
@@ -76,3 +77,17 @@ def get_series(
             for d, r in df.iterrows()
         ],
     }
+
+
+@app.get("/analisi/oggi")
+def analisi_oggi(
+    as_of: date | None = Query(
+        None, description="Analysis as it would have been on this date (point in time)"),
+    history: bool = Query(True, description="Include regime history and voice timelines"),
+) -> dict:
+    """Regime, scenarios, convergence and divergences, with the data behind each one."""
+    if as_of and as_of > date.today():
+        raise HTTPException(400, "as_of cannot be in the future")
+    with session_scope() as s:
+        return run_analysis(s, as_of, has_fred_key=bool(get_settings().fred_api_key),
+                            with_history=history)

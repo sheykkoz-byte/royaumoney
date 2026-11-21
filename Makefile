@@ -1,4 +1,4 @@
-.PHONY: setup dev backend frontend verify ingest ingest-full health test lint
+.PHONY: setup dev backend frontend verify ingest ingest-full health analisi test lint
 
 UV ?= uv
 BACK = cd backend &&
@@ -28,6 +28,9 @@ ingest-full:      ## Re-download the whole history
 
 health:           ## Data freshness in the terminal
 	$(BACK) $(UV) run python -m app.cli health
+
+analisi:          ## Regime, scenarios, convergence (AS_OF=YYYY-MM-DD for a past date)
+	$(BACK) $(UV) run python -m app.cli analisi $(if $(AS_OF),--as-of $(AS_OF))
 
 test:
 	$(BACK) $(UV) run pytest -q

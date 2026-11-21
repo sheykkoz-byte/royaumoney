@@ -10,7 +10,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Chiavi solo in `.env`, mai nel repository.
 
 ## Stato
-- Fase 0 e Fase 1: fatte (novembre 2026). Prossima: Fase 2 (regime + convergenza).
+- Fasi 0, 1 e 2: fatte (novembre 2026). Prossima: Fase 3 (registro delle previsioni).
 
 ## Come è fatto il motore dati
 - Ogni serie è in `backend/app/catalog.py`. Per aggiungerne una basta una riga lì; `make verify` controlla ID e unità su FRED.
@@ -19,5 +19,10 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Valori salvati in unità normalizzate (miliardi di USD, migliaia di persone…); `raw_value` conserva il valore originale.
 - Limiti noti: spread ICE solo ultimi 3 anni su FRED; nessun M2 cinese aggiornato su FRED; yfinance solo per il prototipo. Dettagli in `docs/fonti-dati.md`.
 
+## Motore analitico (Fase 2)
+- `backend/app/analysis/`: `indicators.py` (trasformazioni, z-score, variazioni), `regime.py`, `scoring.py` (formule pure), `engine.py` (orchestrazione, `analyze()` è puro e point-in-time).
+- Tutte le scelte di metodo stanno in `analysis/config.py`; il metodo è spiegato in `docs/metodo-analisi.md`.
+- Ogni indicatore ha una colonna `available` (data di pubblicazione): l'analisi a una data usa solo righe con `available <= as_of`. Il test `test_analyze_is_point_in_time` lo garantisce.
+
 ## Comandi
-`make setup` · `make verify` · `make ingest` · `make health` · `make dev` · `make test` · `make lint`
+`make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make dev` · `make test` · `make lint`

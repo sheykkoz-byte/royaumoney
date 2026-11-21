@@ -5,12 +5,13 @@ from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app import catalog, derived
 from app.catalog import SeriesDef
 from app.config import get_settings
-from app.db import Series, session_scope
+from app.db import Observation, Series, session_scope
 from app.sources import RawPoint
 from app.sources.fred import FredClient
 from app.sources.yahoo import download_closes
@@ -76,6 +77,27 @@ def _record(session: Session, sid: str, error: str | None) -> None:
     row.last_fetch_error = error
 
 
+LATE_VINTAGE_SLACK = timedelta(days=60)
+
+
+def backfill_first_versions(sdef: SeriesDef, pts: list[RawPoint]) -> list[RawPoint]:
+    """Estimated first versions for observations whose earliest ALFRED vintage is late.
+
+    Uses the earliest vintage's value, dated ref_date + typical release lag.
+    """
+    first: dict[date, RawPoint] = {}
+    for p in pts:
+        if p.published_at and (p.ref_date not in first
+                               or p.published_at < first[p.ref_date].published_at):
+            first[p.ref_date] = p
+    lag = timedelta(days=sdef.release_lag_days)
+    return [
+        RawPoint(d, p.value, d + lag)
+        for d, p in first.items()
+        if p.published_at - (d + lag) > LATE_VINTAGE_SLACK
+    ]
+
+
 def ingest_fred(session: Session, client: FredClient, full: bool = False) -> dict[str, dict]:
     sync_catalog(session)
     stale = [
@@ -99,6 +121,18 @@ def ingest_fred(session: Session, client: FredClient, full: bool = False) -> dic
         try:
             vintages = sdef.revised and client.has_key
             pts = client.observations(sdef.source_id, _start(session, sdef, full), vintages)
+            if vintages and full and pts:
+                # Exact ALFRED vintages replace versions whose dates were estimated or
+                # first seen by us; mixing both would leave spurious versions.
+                session.execute(delete(Observation).where(
+                    Observation.series_id == sdef.id, Observation.pub_method != "alfred"))
+                session.flush()
+            if vintages:
+                # ALFRED's history starts late for some series (claims: 2009). For dates whose
+                # first vintage came much later than normal, add an estimated first version.
+                est = backfill_first_versions(sdef, pts)
+                if est:
+                    save_points(session, sdef, est, "estimated_lag")
             rep = save_points(session, sdef, pts, "alfred" if vintages else "first_seen")
             out[sdef.id] = asdict(rep) | {"points": len(pts), "vintages": vintages}
             _record(session, sdef.id, None)
