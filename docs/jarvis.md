@@ -79,7 +79,7 @@ Backend vero, dati scaricati con `make ingest` (44 serie verdi su 45, XLE senza 
 
 ## Artefatto (pagina da provare senza backend)
 
-`frontend/artifact/`: l'interfaccia vera (sfera, grafici, schede, voce) impacchettata in un'unica pagina. Una finta WebSocket (`fake-ws.ts`) risponde con le risposte registrate dal backend (`record.py`: una per intento del cervello dimostrativo, con audio ElevenLabs) e smista le domande con le stesse regole di `demo.INTENTS`. Il microfono non funziona dentro l'artefatto: si scrive o si usano i pulsanti.
+`frontend/artifact/`: l'interfaccia vera (sfera, grafici, schede, voce) impacchettata in un'unica pagina. Una finta WebSocket (`fake-ws.ts`) risponde con le risposte registrate dal backend (`record.py`: una per intento del cervello dimostrativo, con audio ElevenLabs) e smista le domande con le stesse regole di `demo.INTENTS`. Il microfono usa la dettatura della piattaforma (`mic.ts`, capacità `dictation`): funziona su Chrome e nell'app desktop di Claude, non su Safari, Firefox o le app per telefono. Da pubblicare con `capabilities: {dictation: {}}`.
 
 Per rigenerarla con dati nuovi (backend acceso su :8000):
 
