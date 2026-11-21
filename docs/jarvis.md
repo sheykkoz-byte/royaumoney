@@ -58,6 +58,24 @@ Apri http://localhost:3000 e usa i pulsanti, scrivi una domanda, oppure tocca il
 
 In modalità dimostrativa il badge giallo in alto lo segnala. Jarvis risponde su oro, regime, scenari e convergenza, liquidità e M2, lavoro, previsioni. Ogni numero viene dal database.
 
+## Collaudo del 21/11/2026 (cervello dimostrativo + ElevenLabs)
+
+Backend vero, dati scaricati con `make ingest` (44 serie verdi su 45, XLE senza dati da Yahoo).
+
+| Domanda | Tempo | Esito |
+|---|---|---|
+| Come sta l'oro? | 1,7 s | ✅ 3.515 $, −33,9% dal massimo di chiusura 5.318; 5 scene, la prima a 0,17 s di audio |
+| In che regime siamo? | 7,8 s (prima chiamata) | ✅ Liquidità in espansione · Reflazione, asse liquidità al confine |
+| Quali sono gli scenari? | 0,9 s | ✅ Stagflazione e Reflazione quasi alla pari |
+| Cosa dice la liquidità? | 1,1 s | ✅ Fed netta 5.825 mld, M2 23.414 mld, correlazione M2→oro 0,11 |
+| Come va il lavoro? | 0,7 s | ✅ disoccupazione 4,1%, +165 mila posti |
+| Come vanno le previsioni? | 0,7 s | ✅ P-0002 aperta |
+| Che tempo fa a Roma? | 0,6 s | ✅ risposta di ripiego |
+
+- **Ripiego con chiave non valida:** 401 da `api.anthropic.com` → risponde il cervello dimostrativo e `cervello_errore` lo segnala. L'host è raggiungibile dalla rete dell'ambiente.
+- **Corretto:** con il database vuoto (container nuovo) oro e liquidità andavano in errore e il regime dava il testo di ripiego. Ora Jarvis dice che mancano i dati e di lanciare `make ingest` (test `test_demo_empty_database_says_data_is_missing`).
+- **Da fare:** collaudo del cervello Claude con la chiave vera. La variabile `ANTHROPIC_API_KEY` è nell'ambiente `royaumoney` ma una sessione la legge solo se nasce dopo che è stata aggiunta.
+
 ## Note sui dati mostrati
 
 - L'oro nel grafico è il **future COMEX continuo** (`GC=F`) su prezzi di **chiusura**: il "massimo storico" è quello di chiusura (5.318), non il massimo intraday spot (5.598,75). La verifica delle previsioni invece usa lo spot vero di Twelve Data.

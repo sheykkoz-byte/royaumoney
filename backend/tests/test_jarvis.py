@@ -160,6 +160,13 @@ def test_demo_gold_uses_database_numbers(seeded):
     assert [c["warning"] for c in out["scene"]] == [None] * len(out["scene"])
 
 
+@pytest.mark.parametrize("q", ["Come sta l'oro?", "qual è il regime", "la M2 sale?",
+                               "dati sul lavoro", "ci sono divergenze?", "il mio scenario"])
+def test_demo_empty_database_says_data_is_missing(session, q):
+    a = demo.answer(session, q)  # must not raise, must not invent numbers
+    assert not any(ch.isdigit() for ch in a["parlato"]), a["parlato"]
+
+
 # ---- WebSocket -------------------------------------------------------------------------------
 def test_websocket_protocol(monkeypatch):
     from fastapi.testclient import TestClient
