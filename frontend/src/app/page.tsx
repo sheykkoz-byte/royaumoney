@@ -37,6 +37,7 @@ export default function Jarvis() {
 
   const perform = useCallback((r: Risposta) => {
     setDemo(r.modalita === "dimostrativa");
+    if (r.cervello_errore) flash("Claude non ha risposto: ha risposto il cervello dimostrativo.");
     setReply(r.parlato);
     setShown(0);
     setStage(EMPTY_STAGE);

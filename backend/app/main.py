@@ -139,9 +139,9 @@ class Domanda(BaseModel):
     testo: str
 
 
-def _ask(testo: str) -> dict:
+def _ask(testo: str, history: list[dict] | None = None) -> dict:
     with session_scope() as s:
-        return jarvis.ask(s, testo)
+        return jarvis.ask(s, testo, history)
 
 
 @app.post("/jarvis/domanda")
@@ -158,6 +158,7 @@ async def jarvis_ws(ws: WebSocket) -> None:
     """Client sends {"tipo": "domanda", "testo": ...}; server answers with
     {"tipo": "stato", "stato": "elaboro"} then {"tipo": "risposta", ...script}."""
     await ws.accept()
+    history: list[dict] = []  # this connection's conversation, for follow-up questions
     try:
         while True:
             msg = await ws.receive_json()
@@ -166,7 +167,9 @@ async def jarvis_ws(ws: WebSocket) -> None:
                 continue
             await ws.send_json({"tipo": "stato", "stato": "elaboro"})
             try:
-                out = await run_in_threadpool(_ask, msg.get("testo", ""))
+                out = await run_in_threadpool(_ask, msg.get("testo", ""), history)
+                history.append({"domanda": out["domanda"], "parlato": out["parlato"]})
+                del history[:-8]
                 await ws.send_json({"tipo": "risposta", **out})
             except Exception as e:  # keep the connection alive, report the problem
                 await ws.send_json({"tipo": "errore", "messaggio": str(e)})

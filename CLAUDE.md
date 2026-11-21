@@ -10,7 +10,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Chiavi solo in `.env`, mai nel repository.
 
 ## Stato
-- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Fase 4 in corso: fatte le parti senza chiavi (strumenti, direttore di scena, cervello dimostrativo, WebSocket, frontend). Voce ElevenLabs fatta (credenziale nell'ambiente cloud, `VOICE=elevenlabs`). Manca solo il cervello Claude: ANTHROPIC_API_KEY va in una variabile d'ambiente o nel .env (le chiavi Anthropic non possono essere credenziali di rete). Dettagli in `docs/jarvis.md`.
+- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Fase 4 in corso: fatte le parti senza chiavi (strumenti, direttore di scena, cervello dimostrativo, WebSocket, frontend). Voce ElevenLabs fatta (credenziale nell'ambiente cloud, `VOICE=elevenlabs`). Cervello Claude scritto e testato con un client finto (`claude_brain.py`); si attiva appena c'è ANTHROPIC_API_KEY (variabile d'ambiente dell'ambiente cloud `royaumoney` o .env locale; le chiavi Anthropic non possono essere credenziali di rete). Da collaudare con la chiave vera. Dettagli in `docs/jarvis.md`.
 
 ## Come è fatto il motore dati
 - Ogni serie è in `backend/app/catalog.py`. Per aggiungerne una basta una riga lì; `make verify` controlla ID e unità su FRED.
@@ -33,7 +33,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Statistiche robuste (mediana/MAD) negli z-score: vedi `docs/metodo-analisi.md` (caso giugno 2022).
 
 ## Jarvis (Fase 4)
-- `backend/app/jarvis/`: `tools.py` (strumenti in formato tool use, unica fonte dei numeri), `voice.py` (ElevenLabs con timestamp), `scene.py` (direttore di scena: valida, allinea le parole, allega i dati), `demo.py` (cervello senza AI), `session.py` (sceglie il cervello).
+- `backend/app/jarvis/`: `tools.py` (strumenti in formato tool use, unica fonte dei numeri), `claude_brain.py` (Claude con tool use + risposta JSON a schema), `voice.py` (ElevenLabs con timestamp), `scene.py` (direttore di scena: valida, allinea le parole, allega i dati), `demo.py` (cervello senza AI), `session.py` (sceglie il cervello).
 - Frontend: `src/app/page.tsx` (Jarvis), `src/components/{Orb,Chart,Cards}.tsx`, `src/lib/{jarvis,voice}.ts`. La pagina di stato è in `src/app/stato/`.
 - Regola: il modello non scrive mai numeri nei grafici; il direttore li prende dagli strumenti.
 

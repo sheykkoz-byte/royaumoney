@@ -61,3 +61,18 @@ In modalità dimostrativa il badge giallo in alto lo segnala. Jarvis risponde su
 ## Note sui dati mostrati
 
 - L'oro nel grafico è il **future COMEX continuo** (`GC=F`) su prezzi di **chiusura**: il "massimo storico" è quello di chiusura (5.318), non il massimo intraday spot (5.598,75). La verifica delle previsioni invece usa lo spot vero di Twelve Data.
+
+
+## Cervello Claude
+
+`backend/app/jarvis/claude_brain.py`. Si attiva quando c'è `ANTHROPIC_API_KEY` (impostazione `BRAIN`: `auto` | `demo`).
+
+- **Modello:** `claude-opus-5-5`, effort `medium` (`JARVIS_MODEL`, `JARVIS_EFFORT`: `low` per risposte più rapide). Con il `fallback` lato server, se il modello rifiuta una richiesta ne risponde un altro.
+- **Metodo fisso nel prompt di sistema:** liquidità → regime → conferma del mercato → scenario netto con direzione, obiettivi, tempistica e invalidazione. Le divergenze vanno dette chiaramente. È informazione generale, non consulenza personalizzata (piano, sezione 10).
+- **Numeri:** Claude li legge con gli strumenti di `tools.py`. Le scene `mostra_livello` e `mostra_valore` con un numero che nessuno strumento ha restituito vengono **scartate** e elencate in `scene_scartate`.
+- **Risposta:** JSON vincolato a uno schema (`parlato` + `scene`), poi il direttore di scena lo sincronizza con la voce.
+- **Memoria:** la WebSocket conserva le ultime domande e risposte della conversazione (serve, per esempio, a confermare una previsione con "sì").
+- **Cache:** strumenti e prompt di sistema sono in cache tra una domanda e l'altra.
+- **Se Claude non risponde** (rete, chiave, rifiuto): risponde il cervello dimostrativo e l'interfaccia lo segnala.
+- **Chiave nel cloud:** va come variabile d'ambiente `ANTHROPIC_API_KEY` dell'ambiente `royaumoney` (le chiavi Anthropic non possono essere credenziali di rete); serve una sessione nuova per leggerla. In locale: `.env`.
+- **Latenza:** con 2–4 chiamate agli strumenti una risposta richiede alcuni secondi; per scendere sotto 1,5 s servirà lo streaming frase per frase verso la voce.

@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     elevenlabs_api_key: str = ""
     twelvedata_api_key: str = ""  # optional in the cloud: the proxy injects it
 
+    # Jarvis's brain. "auto": Claude if ANTHROPIC_API_KEY is set, else the demo brain.
+    brain: str = "auto"
+    jarvis_model: str = "claude-opus-5-5"
+    jarvis_effort: str = "medium"  # low | medium | high: lower = faster answers
+
     # Jarvis's voice. "auto": ElevenLabs if ELEVENLABS_API_KEY is set, else the browser.
     # "elevenlabs": always (in the cloud the proxy injects the key). "browser": never.
     voice: str = "auto"

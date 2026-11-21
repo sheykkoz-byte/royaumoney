@@ -166,12 +166,22 @@ def test_websocket_protocol(monkeypatch):
 
     from app import main
 
-    monkeypatch.setattr(main, "_ask", lambda t: {"parlato": f"eco: {t}", "scene": []})
+    seen_history = []
+
+    def fake_ask(t, history=None):
+        seen_history.append(list(history or []))
+        return {"domanda": t, "parlato": f"eco: {t}", "scene": []}
+
+    monkeypatch.setattr(main, "_ask", fake_ask)
     monkeypatch.setattr(main, "start_scheduler", lambda: None)
     with TestClient(main.app) as client, client.websocket_connect("/ws/jarvis") as ws:
         ws.send_json({"tipo": "domanda", "testo": "oro"})
         assert ws.receive_json() == {"tipo": "stato", "stato": "elaboro"}
         r = ws.receive_json()
         assert r["tipo"] == "risposta" and r["parlato"] == "eco: oro"
+        ws.send_json({"tipo": "domanda", "testo": "e la Fed?"})
+        ws.receive_json()
+        ws.receive_json()
+        assert seen_history[1] == [{"domanda": "oro", "parlato": "eco: oro"}]
         ws.send_json({"tipo": "boh"})
         assert ws.receive_json()["tipo"] == "errore"

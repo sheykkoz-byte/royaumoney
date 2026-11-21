@@ -12,6 +12,7 @@ dependencies = [
     "pandas>=2.2",
     "yfinance>=0.2.50",
     "apscheduler>=3.10,<4",
+    "anthropic>=0.80",
 ]
 
 [dependency-groups]

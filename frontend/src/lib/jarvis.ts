@@ -37,6 +37,8 @@ export type Risposta = {
   audio?: { formato: string; audio_base64: string; inizio_caratteri: number[] | null; durata: number | null };
   tempi_voce?: number[];
   voce_errore?: string;
+  cervello_errore?: string; // Claude failed: the demo brain answered
+  scene_scartate?: string[];
   modalita: string;
   intento: string | null;
 };
