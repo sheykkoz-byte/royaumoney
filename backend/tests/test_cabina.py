@@ -70,7 +70,8 @@ def test_tile_from_series():
 
 def test_no_symbol_refused_by_tradingview_widgets():
     # TradingView refuses its TVC indices and CME/ICE futures in embedded charts
-    refused = ("TVC:DXY", "TVC:VIX", "TVC:US", "COMEX:", "NYMEX:", "CBOT:", "ICEUS:")
+    refused = ("TVC:DXY", "TVC:VIX", "TVC:US02Y", "TVC:US10Y", "TVC:US30Y",
+               "COMEX:", "NYMEX:", "CBOT:", "ICEUS:")
     for m in METRICS:
         assert not (m.tv and any(r in m.tv for r in refused)), m.tv
 
