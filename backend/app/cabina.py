@@ -265,6 +265,80 @@ RULES: dict[str, Rule] = {
 }
 
 
+# ---- scales for the explanation window ------------------------------------------------------
+# For each rule: what the traffic light measures, its unit, a display range and the zones
+# (same thresholds as RULES above; a test checks that the zone at the measured value has the
+# tile's colour).
+def _zones(*edges_states: tuple[float | None, float | None, State]) -> list[dict]:
+    return [{"da": a, "a": b, "stato": st} for a, b, st in edges_states]
+
+
+def _sahm_rise(s: pd.Series) -> float | None:
+    m3 = s.rolling(3).mean().dropna()
+    return None if len(m3) < 13 else float(m3.iloc[-1] - m3.iloc[-13:-1].min())
+
+
+def _claims_rise(s: pd.Series, v: float) -> float:
+    year = s[s.index >= s.index[-1] - pd.DateOffset(weeks=52)]
+    return (v / float(year.min()) - 1) * 100
+
+
+def scale(rule: str | None, s: pd.Series, v: float) -> dict | None:
+    if rule is None or rule == "policy":
+        return None
+    if rule == "curve":
+        meas, label, unit, lo, hi = v, "livello della curva", "punti %", -1.5, 2.5
+        zones = _zones((None, 0, "rosso"), (0, 0.25, "giallo"), (0.25, None, "verde"))
+    elif rule == "yield":
+        c = _chg(s, 1, "diff")
+        meas, label, unit, lo, hi = (None if c is None else c * 100), "variazione in un mese", \
+            "punti base", -80, 80
+        zones = _zones((None, -40, "giallo"), (-40, 20, "neutro"), (20, 40, "giallo"),
+                       (40, None, "rosso"))
+    elif rule == "inflation":
+        meas, label, unit, lo, hi = v, "inflazione su un anno", "%", 0, 8
+        zones = _zones((None, 2.5, "verde"), (2.5, 3.5, "giallo"), (3.5, None, "rosso"))
+    elif rule == "breakeven":
+        meas, label, unit, lo, hi = v, "inflazione attesa", "%", 1, 3.5
+        zones = _zones((None, 1.5, "rosso"), (1.5, 1.8, "giallo"), (1.8, 2.6, "verde"),
+                       (2.6, 3.0, "giallo"), (3.0, None, "rosso"))
+    elif rule == "dollar":
+        meas, label, unit, lo, hi = _chg(s, 3, "pct"), "variazione in 3 mesi", "%", -6, 6
+        zones = _zones((None, -1, "verde"), (-1, 1, "neutro"), (1, 3, "giallo"),
+                       (3, None, "rosso"))
+    elif rule == "vix":
+        meas, label, unit, lo, hi = v, "livello del VIX", "", 9, 50
+        zones = _zones((None, 16, "verde"), (16, 25, "giallo"), (25, None, "rosso"))
+    elif rule == "hy":
+        meas, label, unit, lo, hi = v, "spread", "punti %", 2, 10
+        zones = _zones((None, 4, "verde"), (4, 5.5, "giallo"), (5.5, None, "rosso"))
+    elif rule == "liquidity":
+        meas, label, unit, lo, hi = _chg(s, 3, "pct"), "variazione in 3 mesi", "%", -8, 8
+        zones = _zones((None, -3, "rosso"), (-3, 1, "giallo"), (1, None, "verde"))
+    elif rule == "m2":
+        meas, label, unit, lo, hi = v, "crescita su un anno", "%", -5, 12
+        zones = _zones((None, 0, "rosso"), (0, 4, "giallo"), (4, None, "verde"))
+    elif rule == "sahm":
+        meas, label, unit, lo, hi = _sahm_rise(s), "salita dal minimo dell'anno (media 3 mesi)", \
+            "punti", 0, 1.5
+        zones = _zones((None, 0.3, "verde"), (0.3, 0.5, "giallo"), (0.5, None, "rosso"))
+    elif rule == "payrolls":
+        meas, label, unit, lo, hi = v, "posti al mese (media 3 mesi)", "mila", -100, 400
+        zones = _zones((None, 50, "rosso"), (50, 150, "giallo"), (150, None, "verde"))
+    elif rule == "claims":
+        meas, label, unit, lo, hi = _claims_rise(s, v), "salita dal minimo dell'anno", "%", 0, 60
+        zones = _zones((None, 15, "verde"), (15, 30, "giallo"), (30, None, "rosso"))
+    elif rule in ("copper_gold", "cycl_def"):
+        meas, label, unit, lo, hi = _chg(s, 3, "pct"), "variazione in 3 mesi", "%", -15, 15
+        zones = _zones((None, 0, "giallo"), (0, None, "verde"))
+    else:
+        return None
+    if meas is None:
+        return None
+    return {"misura": label, "unita": unit, "valore": _num(meas), "min": lo, "max": hi,
+            "zone": zones}
+
+
 # ---- one tile -------------------------------------------------------------------------------
 def _num(x: float | None, nd: int = 4) -> float | None:
     return None if x is None or not math.isfinite(x) else round(float(x), nd)
@@ -293,11 +367,20 @@ def tile(m: Metric, s: pd.Series) -> dict:
             if prev is not None else None
     for key, months in (("1m", 1), ("1a", 12)):
         changes[key] = _num(_chg(s, months, m.change))
+    sc = scale(m.rule, s, v)
+    if sc is not None:
+        meas = sc["valore"]
+        zone = next((z for z in sc["zone"] if (z["da"] is None or meas >= z["da"])
+                     and (z["a"] is None or meas < z["a"])), None)
+        if zone is not None and zone["stato"] != state:
+            # The light also looks at history (e.g. a curve that was inverted this year)
+            sc["nota"] = f"Il semaforo è {state} perché: {reading[0].lower()}{reading[1:]}"
     return {
         "id": m.id, "label": m.label, "section": m.section, "unit": m.unit,
         "decimals": m.decimals, "change_kind": m.change, "tv": m.tv,
         "value": _num(v), "date": s.index[-1].date().isoformat(), "changes": changes,
         "state": state, "reading": reading, "spark": sparkline(s),
+        "scala": sc,
         "source": sdef.source if hasattr(sdef, "source") else None,
     }
 

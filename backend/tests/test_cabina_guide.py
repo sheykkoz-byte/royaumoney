@@ -41,3 +41,33 @@ def test_risk_summary_when_fear_is_only_on_stocks():
 def test_tiles_with_errors_are_skipped():
     tiles = [{"id": "GOLD", "section": "Materie prime", "label": "Oro", "errore": "x"}]
     assert explain(["Materie prime"], tiles)["Materie prime"]["oggi"] == []
+
+
+def test_scale_zone_at_the_measured_value_matches_the_tile_colour():
+    """The explanation window's scale must agree with the traffic light."""
+    import numpy as np
+    import pandas as pd
+
+    from app.cabina import RULES, scale
+
+    rng = np.random.default_rng(7)
+    idx = pd.date_range("2023-01-01", periods=1100, freq="D")
+    checked = 0
+    for rule in RULES:
+        for level in (-2.0, 0.1, 1.5, 3.0, 5.0, 30.0, 200.0):
+            s = pd.Series(level + np.cumsum(rng.normal(0, 0.02 * (abs(level) + 1), len(idx))),
+                          index=idx)
+            if rule in ("sahm", "payrolls", "claims", "m2", "inflation"):
+                s = s.resample("MS").last() if rule != "claims" else s.resample("W-SAT").last()
+                s = s.abs() + 0.1 if rule == "claims" else s
+            v = float(s.iloc[-1])
+            state, _ = RULES[rule](s, v)
+            sc = scale(rule, s, v)
+            if sc is None:
+                continue
+            m = sc["valore"]
+            zone = next(z for z in sc["zone"]
+                        if (z["da"] is None or m >= z["da"]) and (z["a"] is None or m < z["a"]))
+            assert zone["stato"] == state, (rule, level, m, zone, state)
+            checked += 1
+    assert checked > 40

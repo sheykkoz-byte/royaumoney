@@ -73,11 +73,13 @@ Sono regole pratiche che descrivono la situazione, **non segnali operativi**. Si
 
 Il sito si pubblica su Vercel (cartella `frontend`). Con la variabile `CABINA_PASSWORD` impostata, ogni pagina chiede la password (`src/middleware.ts`); senza, il sito è aperto, cosa che va bene solo in locale.
 
-## "Cosa vuol dire" (spiegazioni della plancia)
+## Finestra di spiegazione dei riquadri
 
-Sotto ogni sezione della plancia macro c'è un riquadro con tre parti, generate da `backend/app/cabina_guide.py` (regole fisse, senza AI, coerenti con le soglie dei semafori):
-- **Oggi**: la lettura dei numeri attuali e una sintesi della sezione (per esempio "la paura è concentrata sulle azioni, il credito non la conferma");
-- **Cosa misura**: a cosa serve la sezione e perché conta;
-- **I riquadri**: il significato di ogni indicatore, con le soglie usate.
+Un clic su un riquadro della plancia apre una finestra (`frontend/src/components/cabina/TileModal.tsx`), che si apre dal riquadro stesso con un'animazione. Contiene:
+- **semaforo e valore** (il numero "conta" fino al valore di oggi) con le variazioni a 1 giorno, 1 mese e 1 anno; per gli indicatori di tensione (VIX, spread, sussidi, disoccupazione, inflazione) la salita è in rosso;
+- il **grafico dell'ultimo anno**, che si disegna da solo; passandoci sopra si leggono data e valore di ogni punto;
+- la **scala "Dove siamo"**: le zone verde/giallo/rosso con le stesse soglie del semaforo (`scale()` in `backend/app/cabina.py`, un test verifica che zona e colore coincidano) e un indicatore che scivola sul valore di oggi;
+- **Oggi** (la lettura del semaforo e la sintesi della sezione), **Cosa vuol dire** (il significato dell'indicatore) e **Perché conta** (la sezione), da `backend/app/cabina_guide.py` (regole fisse, senza AI);
+- ← → per passare agli altri riquadri della sezione, Esc per chiudere, e il pulsante **Apri sul grafico principale** (prima era l'azione del clic).
 
-In cima, "Come leggere i semafori". I testi si aggiornano con la plancia (`python -m app.cli cabina`).
+In cima alla plancia resta "Come leggere i semafori". I testi si aggiornano con la plancia (`python -m app.cli cabina`). Con "riduci movimento" attivo nel sistema le animazioni si spengono.

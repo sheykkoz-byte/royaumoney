@@ -1,8 +1,11 @@
 "use client";
 
 // Macro board: one tile per metric, grouped by section, from /cabina/macro.json
-// (backend: app/cabina.py, rebuilt every day). Clicking a tile opens it on the main chart.
+// (backend: app/cabina.py, rebuilt every day). Clicking a tile opens its explanation window
+// (TileModal), which also offers to open it on the main chart.
+import { useState } from "react";
 import { itNum } from "@/lib/jarvis";
+import TileModal from "./TileModal";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Tile = {
@@ -10,6 +13,10 @@ export type Tile = {
   change_kind: "diff" | "pct"; tv: string | null; value: number; date: string;
   changes: Record<string, number | null>; state: "verde" | "giallo" | "rosso" | "neutro";
   reading: string; spark: [string, number][]; errore?: string;
+  scala?: {
+    misura: string; unita: string; valore: number | null; min: number; max: number;
+    zone: { da: number | null; a: number | null; stato: string }[]; nota?: string;
+  } | null;
 };
 export type Spiegazione = {
   cosa_misura: string; riquadri: { label: string; significato: string }[];
@@ -20,36 +27,6 @@ export type Macro = {
   spiegazioni?: Record<string, Spiegazione>; guida_semafori?: string;
   regime: any; convergenza: any; previsioni: any[];
 };
-
-// "Cosa vuol dire": under each section, today's reading first, then what it measures and
-// what each tile means. Text comes from the backend (app/cabina_guide.py).
-function Explain({ e }: { e: Spiegazione }) {
-  return (
-    <details className="macro-explain" open>
-      <summary>Cosa vuol dire</summary>
-      {e.oggi.length > 0 && (
-        <div className="mx-block">
-          <h4>Oggi{e.semafori ? <span> · {e.semafori}</span> : null}</h4>
-          <ul className="mx-today">{e.oggi.map((f, i) => <li key={i}>{f}</li>)}</ul>
-        </div>
-      )}
-      <div className="mx-block">
-        <h4>Cosa misura</h4>
-        <p>{e.cosa_misura}</p>
-      </div>
-      {e.riquadri.length > 0 && (
-        <div className="mx-block">
-          <h4>I riquadri</h4>
-          <dl className="mx-tiles">
-            {e.riquadri.map((r) => (
-              <div key={r.label}><dt>{r.label}</dt><dd>{r.significato}</dd></div>
-            ))}
-          </dl>
-        </div>
-      )}
-    </details>
-  );
-}
 
 function Spark({ pts, state }: { pts: [string, number][]; state: string }) {
   const vals = pts.map((p) => p[1]).filter((v) => v !== null);
@@ -79,7 +56,7 @@ function change(t: Tile, k: string) {
   return <span key={k} className={`mt-chg ${c > 0 ? "up" : c < 0 ? "down" : ""}`}><i>{k}</i>{txt}</span>;
 }
 
-export function MacroTile({ t, onOpen }: { t: Tile; onOpen: (s: string) => void }) {
+export function MacroTile({ t, onSelect }: { t: Tile; onSelect: (origin: { x: number; y: number }) => void }) {
   if (t.errore) {
     return <div className="mt err"><div className="mt-label">{t.label}</div><div className="mt-read">Dato non disponibile.</div></div>;
   }
@@ -98,12 +75,20 @@ export function MacroTile({ t, onOpen }: { t: Tile; onOpen: (s: string) => void 
       {t.reading && <div className="mt-read">{t.reading}</div>}
     </>
   );
-  return t.tv ? (
-    <button type="button" className={`mt s-${t.state}`} onClick={() => onOpen(t.tv!)} title="Apri sul grafico principale">{body}</button>
-  ) : <div className={`mt s-${t.state}`}>{body}</div>;
+  return (
+    <button type="button" className={`mt s-${t.state}`} title="Apri la spiegazione"
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        onSelect({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      }}>
+      {body}
+    </button>
+  );
 }
 
 export default function MacroBoard({ data, onOpen }: { data: Macro | null; onOpen: (s: string) => void }) {
+  const [open, setOpen] = useState<{ section: string; index: number; origin: { x: number; y: number } | null } | null>(null);
+  const sectionTiles = (sec: string) => (data?.metriche ?? []).filter((t) => t.section === sec && !t.errore);
   return (
     <section className="cab-panel macro">
       <div className="cab-head">
@@ -122,12 +107,23 @@ export default function MacroBoard({ data, onOpen }: { data: Macro | null; onOpe
           <div key={sec} className="macro-sec">
             <h3>{sec}</h3>
             <div className="macro-grid">
-              {data.metriche.filter((t) => t.section === sec).map((t) => <MacroTile key={t.id} t={t} onOpen={onOpen} />)}
+              {data.metriche.filter((t) => t.section === sec).map((t) => (
+                <MacroTile key={t.id} t={t} onSelect={(origin) =>
+                  setOpen({ section: sec, index: sectionTiles(sec).findIndex((x) => x.id === t.id), origin })} />
+              ))}
             </div>
-            {data.spiegazioni?.[sec] && <Explain e={data.spiegazioni[sec]} />}
           </div>
         ))}
       </div>
+      {open && data && open.index >= 0 && (
+        <TileModal
+          tiles={sectionTiles(open.section)} index={open.index} origin={open.origin}
+          guide={data.spiegazioni?.[open.section]}
+          onIndex={(i) => setOpen({ ...open, index: i, origin: null })}
+          onClose={() => setOpen(null)}
+          onOpenChart={onOpen}
+        />
+      )}
     </section>
   );
 }
