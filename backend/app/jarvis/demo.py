@@ -5,11 +5,14 @@ charts) works before the Anthropic key is configured. Every number comes from a 
 The answers say clearly what they are; the Claude brain replaces this in phase 4.
 """
 
+import logging
 import re
 
 from sqlalchemy.orm import Session
 
 from app.jarvis import tools
+
+log = logging.getLogger(__name__)
 
 
 def it_num(x: float | None, nd: int = 0) -> str:
@@ -65,7 +68,7 @@ def gold(s: Session) -> dict:
 def regime(s: Session) -> dict:
     r = tools.regime_attuale(s)
     if not r.get("assi"):
-        return fallback(s)
+        return no_data(s)
     a = r["assi"]
     st = r["storico_regime"]
     best = ", ".join(x["asset"] for x in st["meglio"][:2])
@@ -181,8 +184,16 @@ def greeting(s: Session) -> dict:
 def fallback(s: Session) -> dict:
     return {"parlato": "In modalità dimostrativa conosco l'oro, il regime macro, gli scenari "
                        "e la convergenza, la liquidità, il lavoro e il registro delle "
-                       "previsioni. Con la chiave Anthropic potrò rispondere a tutto.",
+                       "previsioni. Quando sarà attivo il cervello Claude potrò rispondere "
+                       "anche alle altre domande.",
             "scene": []}
+
+
+def no_data(s: Session) -> dict:
+    """The database lacks what the answer needs: say so, never make numbers up."""
+    return {"parlato": "Non ho ancora i dati per rispondere: nel database mancano le serie "
+                       "che servono. Vanno scaricate con make ingest; la pagina di stato "
+                       "dice quali sono ferme.", "scene": []}
 
 
 INTENTS = [
@@ -200,5 +211,11 @@ def answer(session: Session, question: str) -> dict:
     q = question.lower()
     for pattern, fn in INTENTS:
         if re.search(pattern, q):
-            return fn(session) | {"modalita": "dimostrativa", "intento": fn.__name__}
+            try:
+                script = fn(session)
+            except (KeyError, IndexError, TypeError, ZeroDivisionError) as e:
+                # A tool returned no points (empty database, stale series)
+                log.warning("demo intent %s: missing data (%r)", fn.__name__, e)
+                script = no_data(session)
+            return script | {"modalita": "dimostrativa", "intento": fn.__name__}
     return fallback(session) | {"modalita": "dimostrativa", "intento": "fallback"}

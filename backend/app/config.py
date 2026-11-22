@@ -2,6 +2,7 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -15,11 +16,14 @@ class Settings(BaseSettings):
     )
 
     fred_api_key: str = ""
-    anthropic_api_key: str = ""
+    # Jarvis's own name first: cloud sessions drop ANTHROPIC_API_KEY (Claude Code uses it)
+    anthropic_api_key: str = Field(
+        "", validation_alias=AliasChoices("JARVIS_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"))
     elevenlabs_api_key: str = ""
     twelvedata_api_key: str = ""  # optional in the cloud: the proxy injects it
 
-    # Jarvis's brain. "auto": Claude if ANTHROPIC_API_KEY is set, else the demo brain.
+    # Jarvis's brain. "auto": Claude if JARVIS_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) is set,
+    # else the demo brain.
     brain: str = "auto"
     jarvis_model: str = "claude-opus-5-5"
     jarvis_effort: str = "medium"  # low | medium | high: lower = faster answers

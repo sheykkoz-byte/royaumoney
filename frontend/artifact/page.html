@@ -1,0 +1,16 @@
+<title>Jarvis RoyauMoney</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* GLOBALS */
+/* Single dark look by choice (the app's own palette), on top of the real frontend's globals.css. */
+:root { color-scheme: dark; }
+html, body { height: 100%; background: #05060c; }
+.snap-note { position: fixed; left: 50%; transform: translateX(-50%); top: calc(64px + env(safe-area-inset-top, 0px));
+  z-index: 25; font: 10px/1.4 "JetBrains Mono", ui-monospace, monospace; color: #8a8fb4; letter-spacing: .08em;
+  border: 1px solid rgba(150,140,255,.16); border-radius: 999px; padding: 4px 10px; background: rgba(16,18,34,.62);
+  white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 900px) { .snap-note { top: calc(22px + env(safe-area-inset-top, 0px)); } }
+</style>
+<div id="root"></div>
+<div class="snap-note">DATI REGISTRATI IL 21/11/2026 · CERVELLO CLAUDE SUL TUO ACCOUNT</div>
+<script src="app.js"></script>

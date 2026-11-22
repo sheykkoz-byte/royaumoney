@@ -102,3 +102,14 @@ def test_session_falls_back_to_demo_when_claude_fails(session, monkeypatch):
     monkeypatch.setattr(jarvis.voice, "enabled", lambda: False)
     out = jarvis.ask(session, "Qual è il regime?")
     assert out["modalita"] == "dimostrativa" and out["cervello_errore"] == "boom"
+
+
+def test_key_read_from_jarvis_name_first(monkeypatch):
+    from app.config import Settings
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("JARVIS_ANTHROPIC_API_KEY", "k-jarvis")
+    assert Settings(_env_file=None).anthropic_api_key == "k-jarvis"
+    monkeypatch.delenv("JARVIS_ANTHROPIC_API_KEY")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k-plain")
+    assert Settings(_env_file=None).anthropic_api_key == "k-plain"

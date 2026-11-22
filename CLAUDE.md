@@ -10,7 +10,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Chiavi solo in `.env`, mai nel repository.
 
 ## Stato
-- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Fase 4 in corso: fatte le parti senza chiavi (strumenti, direttore di scena, cervello dimostrativo, WebSocket, frontend). Voce ElevenLabs fatta (credenziale nell'ambiente cloud, `VOICE=elevenlabs`). Cervello Claude scritto e testato con un client finto (`claude_brain.py`); si attiva appena c'è ANTHROPIC_API_KEY (variabile d'ambiente dell'ambiente cloud `royaumoney` o .env locale; le chiavi Anthropic non possono essere credenziali di rete). Da collaudare con la chiave vera. Dettagli in `docs/jarvis.md`.
+- Fasi 0, 1, 2 e 3: fatte (novembre 2026). Fase 4 in corso: fatte le parti senza chiavi (strumenti, direttore di scena, cervello dimostrativo, WebSocket, frontend). Voce ElevenLabs fatta (credenziale nell'ambiente cloud, `VOICE=elevenlabs`). Cervello Claude scritto e testato con un client finto (`claude_brain.py`); si attiva appena c'è JARVIS_ANTHROPIC_API_KEY (variabile dell'ambiente cloud `royaumoney`: il nome ANTHROPIC_API_KEY non arriva alle sessioni cloud) o ANTHROPIC_API_KEY nel .env locale. Collaudato il 21/11/2026 con cervello dimostrativo + ElevenLabs (vedi `docs/jarvis.md`); il cervello Claude va collaudato con la chiave vera in una sessione nuova. Artefatto claude.ai con cervello Claude sull'account di chi guarda, senza chiavi (`frontend/artifact/`, vedi `docs/jarvis.md`). Lo script di avvio dell'ambiente cloud lancia l'ingest, così il database non parte vuoto. Dettagli in `docs/jarvis.md`.
 
 ## Come è fatto il motore dati
 - Ogni serie è in `backend/app/catalog.py`. Per aggiungerne una basta una riga lì; `make verify` controlla ID e unità su FRED.
