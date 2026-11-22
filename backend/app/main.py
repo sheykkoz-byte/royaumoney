@@ -189,3 +189,16 @@ def rqe_snapshot() -> dict:
         return _json.loads(rqe.OUT.read_text(encoding="utf-8"))
     with session_scope() as s:
         return rqe.snapshot(s)
+
+
+# ---- Institutional holdings (13F) × regime ---------------------------------------------
+@app.get("/istituzionali")
+def istituzionali() -> dict:
+    """Latest 13F of large managers, what they bought, price since, regime fit, verdict."""
+    import json as _json
+
+    from app.institutions import service as inst
+
+    if inst.OUT.exists():
+        return _json.loads(inst.OUT.read_text(encoding="utf-8"))
+    return inst.build()

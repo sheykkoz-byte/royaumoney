@@ -21,6 +21,9 @@ class Settings(BaseSettings):
         "", validation_alias=AliasChoices("JARVIS_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"))
     elevenlabs_api_key: str = ""
     twelvedata_api_key: str = ""  # optional in the cloud: the proxy injects it
+    # SEC EDGAR asks automated clients to declare who they are ("name email"). Generic by
+    # default; put your own contact in .env as SEC_USER_AGENT if you prefer.
+    sec_user_agent: str = "RoyauMoney research admin@royaumoney.local"
 
     # Jarvis's brain. "auto": Claude if JARVIS_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) is set,
     # else the demo brain.

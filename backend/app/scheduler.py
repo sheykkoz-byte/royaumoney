@@ -33,6 +33,12 @@ def _job() -> None:
             rqe.export(s)
     except Exception:
         log.exception("Regime & Quality Engine export failed")
+    try:
+        from app.institutions import service as inst
+
+        inst.export()  # new 13F filings appear in the 45 days after each quarter end
+    except Exception:
+        log.exception("Institutional holdings export failed")
 
 
 def start_scheduler() -> BackgroundScheduler:

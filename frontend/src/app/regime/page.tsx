@@ -185,7 +185,7 @@ export default function RegimePage() {
           <h1>{r.nome}</h1>
           <p className="rq-muted">{r.descrizione} Dati al {d.as_of.split("-").reverse().join("/")}.</p>
         </div>
-        <Link href="/" className="rq-back">← Cabina</Link>
+        <div className="in-links"><Link href="/istituzionali" className="rq-back">Istituzionali →</Link><Link href="/" className="rq-back">← Cabina</Link></div>
       </header>
 
       <section className="rq-grid">

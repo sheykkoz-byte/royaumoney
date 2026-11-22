@@ -147,10 +147,23 @@ def main() -> None:
     sub.add_parser("rqe", help="Regime & Quality Engine: write frontend/public/rqe/rqe.json")
     sub.add_parser("rqe-taratura", help="Calibrate the regime tilt (train 2000-2012, test 2013+)")
     sub.add_parser("cabina", help="Write the cockpit's macro board (frontend/public/cabina)")
+    sub.add_parser("istituzionali",
+                   help="13F of large managers × macro regime (frontend/public/istituzionali)")
     args = p.parse_args()
 
     init_db()
     settings = get_settings()
+    if args.cmd == "istituzionali":
+        from app.institutions import service as inst
+
+        out = inst.export()
+        d = json.loads(out.read_text(encoding="utf-8"))
+        for m in d["gestori"]:
+            print(f"{m['nome']:<24} {m.get('periodo', '–')}  {m.get('errore', '')}")
+        for i in d["idee"][:10]:
+            print(f"  {i['ticker']:<6} {i['giudizio']:<16} {', '.join(i['gestori'])}")
+        print(f"written {out}")
+        return
     if args.cmd == "cabina":
         from app import cabina
 
