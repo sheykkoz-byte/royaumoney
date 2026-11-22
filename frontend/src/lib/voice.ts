@@ -124,6 +124,8 @@ export function play(
 }
 
 
+import { measure, resetBands } from "./audio";
+
 let audioCtx: AudioContext | null = null;
 let current: HTMLAudioElement | null = null;
 
@@ -156,7 +158,8 @@ export function playAudio(
   } catch {
     analyser = null; // the audio still plays, the orb falls back to word pulses
   }
-  const buf = new Uint8Array(512);
+  const time = new Uint8Array(512);
+  const freq = new Uint8Array(256);
   let lastChar = -1;
 
   const finish = () => {
@@ -165,6 +168,7 @@ export function playAudio(
     cancelAnimationFrame(raf);
     cueSeconds.forEach((_, i) => { if (!fired.has(i)) { fired.add(i); h.onCue(i); } });
     h.onLevel(-1);
+    resetBands();
     h.onEnd();
   };
   const tick = () => {
@@ -177,16 +181,11 @@ export function playAudio(
       while (c + 1 < charStarts.length && charStarts[c + 1] <= t) c++;
       if (c !== lastChar) { lastChar = c; h.onWord(c); }
     }
-    if (analyser) {
-      analyser.getByteTimeDomainData(buf);
-      let sum = 0;
-      for (const v of buf) { const x = (v - 128) / 128; sum += x * x; }
-      h.onLevel(Math.sqrt(sum / buf.length));
-    }
+    if (analyser) h.onLevel(measure(analyser, freq, time));
     if (!ended) raf = requestAnimationFrame(tick);
   };
   el.onended = finish;
   el.onerror = finish;
   el.play().then(() => { raf = requestAnimationFrame(tick); }).catch(() => finish());
-  return () => { ended = true; cancelAnimationFrame(raf); stopAudio(); h.onLevel(-1); };
+  return () => { ended = true; cancelAnimationFrame(raf); stopAudio(); h.onLevel(-1); resetBands(); };
 }

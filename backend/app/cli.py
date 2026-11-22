@@ -144,10 +144,17 @@ def main() -> None:
     show = pvs.add_parser("show", help="One prediction with its event log")
     show.add_argument("id")
     sub.add_parser("track-record", help="Hit rates and Brier score")
+    sub.add_parser("cabina", help="Write the cockpit's macro board (frontend/public/cabina)")
     args = p.parse_args()
 
     init_db()
     settings = get_settings()
+    if args.cmd == "cabina":
+        from app import cabina
+
+        with session_scope() as s:
+            print(f"written {cabina.export(s)}")
+        return
     if args.cmd == "verify":
         mode = "API FRED" if settings.fred_api_key else "pagine pubbliche FRED (senza chiave)"
         with session_scope() as s:
