@@ -69,6 +69,48 @@ ASSETS = {
     "cash": "Liquidità (T-bill)",
 }
 RISKY = [a for a in ASSETS if a != "cash"]
+# How to hold each asset class: the US ETF used in the backtest and a UCITS equivalent that
+# an EU investor can buy (US ETFs have no KID, so EU brokers do not sell them to retail).
+# London tickers checked on Yahoo; on Borsa Italiana or Xetra search by the fund's name.
+INSTRUMENTS: dict[str, dict] = {
+    "equity": {
+        "usa": "SPY", "ucits": "CSPX",
+        "nome_ucits": "iShares Core S&P 500 UCITS ETF (Acc)",
+        "ruolo": "Motore di crescita: va bene quando l'economia accelera e l'inflazione "
+                 "è sotto controllo.",
+    },
+    "long_tsy": {
+        "usa": "TLT", "ucits": "DTLA",
+        "nome_ucits": "iShares $ Treasury Bond 20+yr UCITS ETF (Acc)",
+        "ruolo": "Protezione da recessione e deflazione: sale quando i tassi scendono.",
+    },
+    "int_tsy": {
+        "usa": "IEF", "ucits": "CBU0",
+        "nome_ucits": "iShares $ Treasury Bond 7-10yr UCITS ETF (Acc)",
+        "ruolo": "Stabilizzatore: meno sensibile ai tassi dei lunghi, è la base difensiva.",
+    },
+    "tips": {
+        "usa": "TIP", "ucits": "IDTP",
+        "nome_ucits": "iShares $ TIPS UCITS ETF (Acc)",
+        "ruolo": "Treasury indicizzati all'inflazione: difendono quando l'inflazione sorprende.",
+    },
+    "gold": {
+        "usa": "GLD", "ucits": "SGLD",
+        "nome_ucits": "Invesco Physical Gold ETC",
+        "ruolo": "Riserva di valore: aiuta con inflazione alta, crisi e dollaro debole.",
+    },
+    "commodities": {
+        "usa": "DBC", "ucits": "ICOM",
+        "nome_ucits": "iShares Diversified Commodity Swap UCITS ETF",
+        "ruolo": "Materie prime: vanno bene quando crescita e inflazione salgono insieme.",
+    },
+    "cash": {
+        "usa": "BIL", "ucits": "IB01",
+        "nome_ucits": "iShares $ Treasury Bond 0-1yr UCITS ETF (Acc)",
+        "ruolo": "Liquidità in Treasury a breve: parcheggio quando i regimi difensivi "
+                 "sono probabili.",
+    },
+}
 VOL_MONTHS = 12  # risk parity: volatility of the last 12 monthly returns
 VOL_MIN_MONTHS = 6
 # Tilt preferences per quadrant, from −1 (underweight) to +1 (overweight). From the brief:

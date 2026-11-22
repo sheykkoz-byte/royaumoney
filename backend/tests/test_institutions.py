@@ -128,3 +128,33 @@ def test_split_is_not_a_purchase():
     assert ch.loc["S", "frazionamento"] == 3
     assert ch.loc["S", "prima"] == 300 and ch.loc["S", "tipo"] == "aumentata poco"
     assert A.changes(prev, curr).loc["S", "tipo"] == "aumentata"  # no split known
+
+
+def test_dcf_matches_a_hand_computation():
+    # constant growth = terminal: PV of a growing perpetuity = fcf(1+g)/(r-g)
+    v = A.dcf(100, 10, 0, 0, 0.02, 0.08, 0.02, years=10)
+    assert v == pytest.approx(100 * 1.02 / 0.06 / 10, rel=1e-9)
+    assert A.dcf(-5, 10, 0, 0, 0.05, 0.08, 0.02) is None
+    assert A.dcf(100, 10, 50, 0, 0.02, 0.08, 0.02) == pytest.approx(v + 5)
+
+
+def test_buffett_margin_of_safety():
+    from app.rqe.config import SCREENER
+
+    info = {"fcf": 100.0, "azioni": 10.0, "cassa": 0, "debito": 0, "crescita_utili": 0.05,
+            "roe": 0.2, "ebitda": 150.0, "margine_operativo": 0.3, "pe": 10}
+    cheap = A.buffett(info, price=50, ten_year=0.04, rules=SCREENER)
+    assert cheap["tasso_sconto"] == pytest.approx(0.09)
+    assert cheap["scenari"]["base"]["margine"] > 0.25
+    assert cheap["superati"] == cheap["su"]
+    dear = A.buffett(info, price=10_000, ten_year=0.04, rules=SCREENER)
+    assert dear["scenari"]["base"]["margine"] < 0 and "caro" in dear["sintesi"]
+
+
+def test_sector_by_regime_uses_the_previous_month_regime():
+    idx = pd.date_range("2020-01-31", periods=4, freq="ME")
+    regimes = pd.Series(["A", "B", "A", "B"], index=idx)
+    excess = pd.Series([9.0, 0.01, 0.02, 0.03], index=idx)  # Jan has no known regime before it
+    out = A.sector_by_regime(excess, regimes)
+    assert out["A"]["mesi"] == 2 and out["A"]["eccesso_annuo"] == pytest.approx((0.01 + 0.03) / 2 * 12)
+    assert out["B"]["mesi"] == 1 and out["B"]["eccesso_annuo"] == pytest.approx(0.24)

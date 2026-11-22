@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Card from "@/components/Cards";
 import Clocks from "@/components/cabina/Clocks";
 import MacroBoard, { type Macro } from "@/components/cabina/MacroBoard";
+import Sections from "@/components/cabina/Sections";
 import { TickerTape, TvChart } from "@/components/cabina/Tv";
 import Watchlist from "@/components/cabina/Watchlist";
 import type { OrbSignals } from "@/components/Orb";
@@ -63,6 +64,7 @@ export default function Cabina() {
         <Link href="/jarvis" className="brand" title="Apri Jarvis">
           <div className="brand-dot" /><div>CABINA<small>ROYAUMONEY · USO PERSONALE</small></div>
         </Link>
+        <Sections />
         <div className="cab-tape"><TickerTape symbols={tape} /></div>
         <Clocks />
       </header>
@@ -103,7 +105,7 @@ export default function Cabina() {
         <MacroBoard data={macro} onOpen={setSymbol} />
 
         <aside className="cab-panel jarvis-col">
-          <div className="cab-head"><span>Jarvis</span><span><Link href="/regime" className="cab-link">Regimi →</Link> · <Link href="/istituzionali" className="cab-link">Istituzionali →</Link> · <Link href="/jarvis" className="cab-link">Parla con Jarvis →</Link></span></div>
+          <div className="cab-head"><span>Jarvis</span><span><Link href="/jarvis" className="cab-link">Parla con Jarvis →</Link></span></div>
           <div className="jc-orb"><Orb signals={signals} /></div>
           <div className="jc-scroll">
             {regime && <Card card={{ key: "r", kind: "regime", data: { regime }, born: 0 }} focus={false} />}

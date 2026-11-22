@@ -82,6 +82,11 @@ Più lungo è l'orizzonte, più la relazione è stabile, ma gran parte è comune
 
 **Conclusione:** il tilt è attivo come previsto dalla procedura (`TILT_MODE = "imparato"`, `HORIZON = 3`, `SOLO_REGIME = True`, `TILT_STRENGTH = 1.0`, `SMOOTH_MONTHS = 3` in `config.py`), ma non ha ancora dimostrato un vantaggio reale e la dashboard lo dice. Per tornare alle preferenze teoriche basta `TILT_MODE = "teorico"`. La taratura va rifatta quando cambiano i segnali o le preferenze; il riepilogo è in `docs/rqe-taratura.json`.
 
+### Nella dashboard
+
+- Clic su un regime (probabilità, mappa, legenda): finestra con cosa vuol dire, perché succede, come si riconosce, cosa va bene e male secondo la teoria, e cosa è successo davvero dal 2000 nei mesi dopo quel regime. Glossario dei termini (inflazione, disinflazione, reflazione…). Testi in `frontend/src/lib/regimi.ts`.
+- Clic su una strategia del backtest: composizione di oggi, ETF USA del backtest ed equivalenti UCITS comprabili in UE (`INSTRUMENTS` in `rqe/config.py`, ticker di Londra verificati su Yahoo), ruolo di ogni attivo e, per il tilt, cosa pesare di più e di meno.
+
 ## 4. Alert
 
 Cambio di regime: quando il regime più probabile cambia e il nuovo supera il 40%. Gli alert sul margine di sicurezza arriveranno con lo screener.

@@ -4,6 +4,7 @@
 // Data: /istituzionali/13f.json, written by `python -m app.cli istituzionali`.
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import IdeaSheet from "@/components/IdeaSheet";
 import { itNum } from "@/lib/jarvis";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -42,7 +43,10 @@ function PriceBar({ p }: { p: any }) {
 
 function Ideas({ ideas }: { ideas: any[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [deep, setDeep] = useState<any>(null);
   return (
+    <>
+    <IdeaSheet idea={deep} onClose={() => setDeep(null)} />
     <table className="rq-table in-ideas">
       <thead><tr><th>Titolo</th><th>Chi l&apos;ha comprato</th><th>Settore</th><th>Regime</th><th>Prezzo medio trim.</th><th>Oggi</th><th>Da loro</th><th>Prezzo vs trimestre</th><th>Giudizio</th></tr></thead>
       <tbody>
@@ -50,7 +54,7 @@ function Ideas({ ideas }: { ideas: any[] }) {
           const v = VERDICT[i.giudizio] ?? { label: i.giudizio, cls: "mid" };
           const p = i.prezzi;
           return [
-            <tr key={i.ticker} className="in-row" onClick={() => setOpen(open === i.ticker ? null : i.ticker)}>
+            <tr key={i.ticker} className="in-row" tabIndex={0} onClick={() => setDeep(i)} onKeyDown={(e) => { if (e.key === "Enter") setDeep(i); }}>
               <td><b>{i.ticker}</b><div className="in-muted">{i.emittente}</div></td>
               <td>{i.gestori.join(", ")}<div className="in-muted">{KIND[i.tipo] ?? i.tipo} · {usd(i.valore_acquisti)}</div></td>
               <td>{i.settore ?? "—"}</td>
@@ -59,7 +63,8 @@ function Ideas({ ideas }: { ideas: any[] }) {
               <td>{p ? `$${itNum(p.prezzo_oggi, 2)}` : "—"}</td>
               <td className={p && p.da_prezzo_medio > 0 ? "up" : "down"}>{pct(p?.da_prezzo_medio, 1, true)}</td>
               <td><PriceBar p={p} /></td>
-              <td><span className={`in-chip ${v.cls}`}>{v.label}</span></td>
+              <td><span className={`in-chip ${v.cls}`}>{v.label}</span>
+                <button type="button" className="in-more" onClick={(e) => { e.stopPropagation(); setOpen(open === i.ticker ? null : i.ticker); }}>{open === i.ticker ? "meno" : "motivi"}</button></td>
             </tr>,
             open === i.ticker && (
               <tr key={`${i.ticker}-why`} className="in-why"><td colSpan={9}>
@@ -71,6 +76,7 @@ function Ideas({ ideas }: { ideas: any[] }) {
         })}
       </tbody>
     </table>
+    </>
   );
 }
 
@@ -149,7 +155,7 @@ export default function IstituzionaliPage() {
           {Object.entries(VERDICT).map(([k, v]) => (
             <div key={k} className="in-count"><span className={`in-chip ${v.cls}`}>{v.label}</span><b>{counts[k] ?? 0}</b></div>
           ))}
-          <p className="rq-note">Solo acquisti dei gestori discrezionali. Clicca un titolo per i motivi.</p>
+          <p className="rq-note">Solo acquisti dei gestori discrezionali. Clicca un titolo per l&apos;analisi completa alla Buffett e alla Dalio.</p>
         </div>
         <div className="rq-card">
           <h2>Come si giudica</h2>

@@ -85,3 +85,7 @@ Un clic su un riquadro della plancia apre una finestra (`frontend/src/components
 All'apertura, un breve **suono** sintetizzato (Web Audio, nessun file: un soffio e due note, più chiare col verde e più gravi col rosso, `frontend/src/lib/sfx.ts`) e una **esplosione di particelle** del colore del semaforo. Nella finestra due interruttori, ricordati dal browser: **Suoni** acceso/spento e **Animazioni piene/ridotte** (con "ridotte" tutto compare subito, senza movimento).
 
 In cima alla plancia resta "Come leggere i semafori". I testi si aggiornano con la plancia (`python -m app.cli cabina`). Con "riduci movimento" attivo nel sistema le animazioni si spengono.
+
+## Sezioni di analisi
+
+Nella barra in alto, sempre visibili: **Regimi macro** (icona a quattro quadranti, colora il regime più probabile e ne mostra la probabilità) e **Istituzionali** (quante idee hanno margine). Componente `src/components/cabina/Sections.tsx`. I dati del sito (plancia, regimi, istituzionali) li rigenera e carica ogni sera alle 23:37 l'attività pianificata nel cloud.

@@ -219,3 +219,92 @@ def latest_due_quarter(today: pd.Timestamp) -> pd.Timestamp:
     """The most recent quarter end whose 13F deadline (45 days) has passed."""
     q = (today - pd.Timedelta(days=45)) - pd.offsets.QuarterEnd(0)
     return q if q <= today - pd.Timedelta(days=45) else q - pd.offsets.QuarterEnd(1)
+
+
+# ---- Deep dive: Buffett (value) and Dalio (regime) ----------------------------------------
+def dcf(fcf: float, shares: float, cash: float, debt: float, growth: float, rate: float,
+        terminal: float, years: int = 10) -> float | None:
+    """Intrinsic value per share: free cash flow growing at ``growth`` and fading linearly
+    to ``terminal`` over ``years``, discounted at ``rate``, plus a Gordon terminal value,
+    plus net cash. None when the inputs cannot give a meaningful value."""
+    if not fcf or fcf <= 0 or not shares or shares <= 0 or rate <= terminal:
+        return None
+    pv, cf = 0.0, fcf
+    for y in range(1, years + 1):
+        g = growth + (terminal - growth) * (y - 1) / max(years - 1, 1)
+        cf *= 1 + g
+        pv += cf / (1 + rate) ** y
+    tv = cf * (1 + terminal) / (rate - terminal) / (1 + rate) ** years
+    return (pv + tv + (cash or 0) - (debt or 0)) / shares
+
+
+def buffett(info: dict, price: float | None, ten_year: float | None, rules) -> dict:
+    """Quality checklist, earnings yield against the 10-year Treasury, DCF in three growth
+    scenarios and the margin of safety. ``rules``: rqe ScreenerRules."""
+    rate = max(rules.min_discount_rate, (ten_year or 0) + rules.equity_risk_premium)
+    g_raw = info.get("crescita_utili")
+    if g_raw is None:
+        g_raw = info.get("crescita_ricavi")
+    g = None if g_raw is None else float(np.clip(g_raw, 0.0, rules.max_growth))
+    sc = {}
+    if g is not None:
+        for name, gg in (("prudente", g * 0.5), ("base", g), ("ottimista",
+                                                             min(g * 1.5, rules.max_growth))):
+            v = dcf(info.get("fcf"), info.get("azioni"), info.get("cassa"), info.get("debito"),
+                    gg, rate, rules.terminal_growth, rules.years)
+            sc[name] = {"crescita": round(gg, 4), "valore": None if v is None else round(v, 2),
+                        "margine": None if v is None or not price or v <= 0
+                        else round(1 - price / v, 4)}
+    base = sc.get("base", {})
+    ebitda, debt = info.get("ebitda"), info.get("debito")
+    debt_ebitda = None if not ebitda or ebitda <= 0 or debt is None else debt / ebitda
+    pe = info.get("pe")
+    ey = None if not pe or pe <= 0 else 1 / pe
+    checks = [
+        ("ROE ≥ " + f"{rules.min_roe:.0%}", info.get("roe"),
+         None if info.get("roe") is None else info["roe"] >= rules.min_roe),
+        (f"Debito / EBITDA ≤ {rules.max_debt_ebitda:g}", debt_ebitda,
+         None if debt_ebitda is None else debt_ebitda <= rules.max_debt_ebitda),
+        ("Margine operativo ≥ 15% (potere sui prezzi)", info.get("margine_operativo"),
+         None if info.get("margine_operativo") is None else info["margine_operativo"] >= 0.15),
+        ("Flusso di cassa libero positivo", info.get("fcf"),
+         None if info.get("fcf") is None else info["fcf"] > 0),
+        ("Rendimento degli utili > Treasury 10 anni", ey,
+         None if ey is None or ten_year is None else ey > ten_year),
+        (f"Margine di sicurezza ≥ {rules.min_margin_of_safety:.0%} (scenario base)",
+         base.get("margine"),
+         None if base.get("margine") is None else base["margine"] >= rules.min_margin_of_safety),
+    ]
+    known = [c for c in checks if c[2] is not None]
+    passed = sum(1 for c in known if c[2])
+    if base.get("margine") is None:
+        word = "Valore intrinseco non calcolabile con i dati disponibili."
+    elif base["margine"] >= rules.min_margin_of_safety:
+        word = "Sotto il valore intrinseco stimato con il margine di sicurezza richiesto."
+    elif base["margine"] > 0:
+        word = "Sotto il valore stimato, ma senza il margine di sicurezza richiesto."
+    else:
+        word = "Sopra il valore intrinseco stimato: per Buffett sarebbe caro."
+    return {"tasso_sconto": round(rate, 4), "treasury_10a": ten_year,
+            "rendimento_utili": None if ey is None else round(ey, 4),
+            "debito_ebitda": None if debt_ebitda is None else round(debt_ebitda, 2),
+            "scenari": sc, "controlli": [{"nome": n, "valore": None if v is None else
+                                          round(float(v), 4), "ok": ok} for n, v, ok in checks],
+            "superati": passed, "su": len(known), "sintesi": word}
+
+
+def sector_by_regime(excess: pd.Series, regimes: pd.Series) -> dict:
+    """Average excess return of a sector over the S&P 500 in the month after each month the
+    regime ``q`` was the most likely (regime known at t, return of t+1): annualised mean,
+    months and share of positive months."""
+    r = excess.copy()
+    r.index = r.index.to_period("M")
+    reg = regimes.copy()
+    reg.index = reg.index.to_period("M")
+    nxt = reg.shift(1, freq="M")  # regime of the previous month, aligned to this month
+    df = pd.DataFrame({"r": r, "q": nxt}).dropna()
+    out = {}
+    for q, g in df.groupby("q"):
+        out[q] = {"eccesso_annuo": round(float(g["r"].mean() * 12), 4), "mesi": int(len(g)),
+                  "quota_positivi": round(float((g["r"] > 0).mean()), 3)}
+    return out

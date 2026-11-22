@@ -106,16 +106,106 @@ def _yahoo_info(tickers: list[str], today: date) -> dict:
             i = yf.Ticker(t).info
             de = i.get("debtToEquity")
             cache[t] = {"settore": i.get("sector"), "industria": i.get("industry"),
+                        "nome": i.get("longName"), "paese": i.get("country"),
+                        "valuta": i.get("financialCurrency") or i.get("currency"),
                         "roe": i.get("returnOnEquity"),
                         "debito_patrimonio": de / 100 if isinstance(de, (int, float)) else None,
                         "pe_atteso": i.get("forwardPE"), "pe": i.get("trailingPE"),
-                        "capitalizzazione": i.get("marketCap"), "_giorno": today.isoformat()}
+                        "capitalizzazione": i.get("marketCap"), "fcf": i.get("freeCashflow"),
+                        "azioni": i.get("sharesOutstanding"), "cassa": i.get("totalCash"),
+                        "debito": i.get("totalDebt"), "ebitda": i.get("ebitda"),
+                        "margine_lordo": i.get("grossMargins"),
+                        "margine_operativo": i.get("operatingMargins"),
+                        "margine_netto": i.get("profitMargins"),
+                        "crescita_ricavi": i.get("revenueGrowth"),
+                        "crescita_utili": i.get("earningsGrowth"),
+                        "dividendo": i.get("dividendYield"), "beta": i.get("beta"),
+                        "min_52s": i.get("fiftyTwoWeekLow"), "max_52s": i.get("fiftyTwoWeekHigh"),
+                        "prezzo_obiettivo": i.get("targetMeanPrice"),
+                        "analisti": i.get("numberOfAnalystOpinions"),
+                        "_giorno": today.isoformat()}
         except Exception as e:  # missing or delisted ticker: keep going
             log.warning("Yahoo info %s: %s", t, e)
             cache[t] = {"_giorno": today.isoformat()}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(cache))
     return cache
+
+
+SECTOR_ETF = {"Technology": "XLK", "Energy": "XLE", "Financial Services": "XLF",
+              "Healthcare": "XLV", "Consumer Cyclical": "XLY", "Consumer Defensive": "XLP",
+              "Utilities": "XLU", "Industrials": "XLI", "Basic Materials": "XLB",
+              "Communication Services": "XLC", "Real Estate": "XLRE"}
+
+
+def _sector_history(today: date) -> dict[str, dict]:
+    """Each sector's excess return over SPY by the regime of the month before (regime history
+    from rqe.json, point in time), from the sector SPDR ETFs since 1999."""
+    if not RQE.exists():
+        return {}
+    hist = json.loads(RQE.read_text(encoding="utf-8")).get("storico") or []
+    if not hist:
+        return {}
+    regimes = pd.Series({pd.Timestamp(h["data"]): h["dominante"] for h in hist})
+    path = CACHE / "sector_etf_monthly.csv"
+    if path.exists() and pd.Timestamp(path.stat().st_mtime, unit="s").date() == today:
+        px = pd.read_csv(path, index_col=0, parse_dates=True)
+    else:
+        import yfinance as yf
+
+        px = yf.download(["SPY", *SECTOR_ETF.values()], start="1999-01-01", interval="1mo",
+                         auto_adjust=True, progress=False, group_by="column")["Close"]
+        px.index = px.index + pd.offsets.MonthEnd(0)
+        px = px[~px.index.duplicated(keep="last")]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        px.to_csv(path)
+    px = px[px.index < pd.Timestamp(today) + pd.offsets.MonthEnd(0)]  # complete months only
+    rets = px.pct_change()
+    out = {}
+    for sector, etf in SECTOR_ETF.items():
+        if etf in rets:
+            ex = (rets[etf] - rets["SPY"]).dropna()
+            out[sector] = {"etf": etf, "dal": ex.index[0].date().isoformat() if len(ex) else None,
+                           "per_regime": A.sector_by_regime(ex, regimes)}
+    return out
+
+
+def _ten_year() -> float | None:
+    """Latest 10-year Treasury yield (FRED DGS10 in the database), as a fraction."""
+    try:
+        from app.db import session_scope
+        from app.store import load_frame
+
+        with session_scope() as s:
+            df = load_frame(s, "DGS10")
+        return round(float(df["value"].dropna().iloc[-1]) / 100, 4) if len(df) else None
+    except Exception as e:
+        log.warning("10-year yield: %s", e)
+        return None
+
+
+def _expected(per_regime: dict, probs: dict) -> float | None:
+    """Historical excess return of the sector weighted by today's regime probabilities."""
+    known = {q: p for q, p in probs.items() if q in per_regime}
+    tot = sum(known.values())
+    if not known or tot <= 0:
+        return None
+    return round(sum(p * per_regime[q]["eccesso_annuo"] for q, p in known.items()) / tot, 4)
+
+
+def _usd_only(inf: dict) -> dict:
+    """Fundamentals for the DCF only when the statements are in dollars like the price."""
+    d = {k: A.safe(v) for k, v in inf.items()}
+    if d.get("valuta") and d["valuta"] != "USD":
+        for k in ("fcf", "cassa", "debito", "ebitda"):
+            d[k] = None
+    return d
+
+
+def _weekly(closes: pd.Series, since: pd.Timestamp) -> list[dict]:
+    c = closes.dropna()
+    c = c[c.index >= since].resample("W-FRI").last().dropna()
+    return [{"d": d.date().isoformat(), "c": round(float(v), 2)} for d, v in c.items()]
 
 
 def _closes(tickers: list[str], start: date) -> pd.DataFrame:
@@ -197,7 +287,10 @@ def build(today: date | None = None) -> dict:
                       for d in mm["sel"].values() for c in d.index if tick(c)})
     periods = [pd.Timestamp(mm["f"].period) for mm in managers if "f" in mm]
     start = (min(periods) - pd.offsets.QuarterEnd(1)).date() if periods else today
+    start = min(start, (ts - pd.Timedelta(days=400)).date())  # one year of chart
     closes = _closes(tickers, start)
+    ten_year = _ten_year()
+    sectors_hist = _sector_history(today)
     idea_tickers = sorted({tick(c) for mm in managers if "sel" in mm
                            for c in mm["sel"]["acquisti"].index if tick(c)})
     info = _yahoo_info(idea_tickers, today)
@@ -228,9 +321,16 @@ def build(today: date | None = None) -> dict:
                                                             "pe_atteso", "pe")},
                             **A.verdict(move, fit, q, n, r.tipo)}
                     if m.stile == "discrezionale" and not mm["vecchio"]:
-                        idea = ideas.setdefault(t, row | {"gestori": [], "valore_acquisti": 0})
+                        idea = ideas.setdefault(t, row | {"gestori": [], "valore_acquisti": 0,
+                                                          "dettaglio_gestori": []})
                         idea["gestori"].append(m.nome)
                         idea["valore_acquisti"] += row["variazione_valore"]
+                        idea["dettaglio_gestori"].append({
+                            "nome": m.nome, "nota": m.nota, "tipo": r.tipo,
+                            "quote_prima": row["quote_prima"], "quote_dopo": row["quote_dopo"],
+                            "variazione_pct": row["variazione_pct"],
+                            "valore": row["valore"], "peso": row["peso"],
+                            "variazione_valore": row["variazione_valore"]})
                 rows.append(row)
             blocks[k] = rows
         out_managers.append({
@@ -244,6 +344,28 @@ def build(today: date | None = None) -> dict:
     idea_list = sorted(ideas.values(), key=lambda x: (-x["punteggio"], -len(x["gestori"]),
                                                       -x["valore_acquisti"]))
     for i in idea_list:
+        t = i["ticker"]
+        inf = info.get(t, {})
+        price = (i.get("prezzi") or {}).get("prezzo_oggi")
+        sec = sectors_hist.get(inf.get("settore") or "", {})
+        i["approfondimento"] = {
+            "profilo": {k: A.safe(inf.get(k)) for k in (
+                "nome", "paese", "valuta", "industria", "capitalizzazione", "margine_lordo",
+                "margine_operativo", "margine_netto", "crescita_ricavi", "crescita_utili",
+                "dividendo", "beta", "min_52s", "max_52s", "prezzo_obiettivo", "analisti")},
+            "buffett": A.buffett(_usd_only(inf), price, ten_year, RC.SCREENER),
+            "dalio": {"settore": inf.get("settore"), "etf_settore": sec.get("etf"),
+                      "storia_dal": sec.get("dal"), "per_regime": sec.get("per_regime", {}),
+                      "favorito_in": [q for q, ss in RC.SECTORS.items()
+                                      if inf.get("settore") in ss],
+                      "probabilita": regime["probabilita"],
+                      "eccesso_atteso": _expected(sec.get("per_regime", {}),
+                                                  regime["probabilita"])},
+            "grafico": _weekly(closes[t], ts - pd.Timedelta(days=365)) if t in closes else [],
+        }
+        if inf.get("valuta") and inf["valuta"] != "USD":
+            i["approfondimento"]["avviso"] = (
+                f"Bilanci in {inf['valuta']}, prezzo in USD: niente valore intrinseco.")
         i["motivi"] = A.verdict((i.get("prezzi") or {}).get("da_prezzo_medio"),
                                 i.get("favore_regime"), i.get("qualita"),
                                 len(i["gestori"]), i["tipo"])["motivi"]

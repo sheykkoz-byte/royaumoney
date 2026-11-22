@@ -85,6 +85,7 @@ def snapshot(session: Session, today: date | None = None) -> dict:
         "as_of": today.isoformat(),
         "regime": now,
         "quadranti": C.QUADRANTS,
+        "settori": C.SECTORS,
         "storico": [
             {"data": d.date().isoformat(), "crescita": round(r.crescita, 3),
              "inflazione": round(r.inflazione, 3), "dominante": r.dominante,
@@ -102,6 +103,7 @@ def snapshot(session: Session, today: date | None = None) -> dict:
                      "preferenze": {q: {a: round(v, 2) for a, v in d.items()}
                                     for q, d in (prefs or {}).items()},
                      "preferenze_teoriche": C.TILTS},
+            "strumenti": C.INSTRUMENTS,
             "rendimenti_fino_al": rets.index[-1].date().isoformat() if len(rets) else None,
         },
         "backtest": {
