@@ -27,7 +27,7 @@ Verifiche: giugno 2008 Stagflazione 77% · dicembre 2008 Deflazione 100% · sett
 ## 2. Asset allocation
 
 - **Base All Weather in risk parity:** azioni (SPY), Treasury lunghi (TLT), intermedi (IEF), TIPS (TIP), oro (GLD), materie prime (DBC); pesi inversamente proporzionali alla volatilità degli ultimi 12 mesi. Senza leva: rispetto all'All Weather originale (che usa la leva sulle obbligazioni) il portafoglio pesa di più le obbligazioni e rende meno.
-- **Tilt:** peso × (1 + 0,5 × Σ probabilità × preferenza del regime), con preferenze da −1 a +1 per asset e regime; probabilità medie sugli ultimi 3 mesi; ogni peso resta entro **±10 punti** dalla base; la liquidità sale fino a 10 punti quando i regimi che la preferiscono sono probabili. Le preferenze in uso sono quelle **imparate** (vedi Taratura); quelle teoriche di Dalio sono in `TILTS`.
+- **Tilt:** peso × (1 + forza × Σ probabilità × preferenza del regime), forza 1, con preferenze da −1 a +1 per asset e regime; probabilità medie sugli ultimi 3 mesi; ogni peso resta entro **±10 punti** dalla base; la liquidità sale fino a 10 punti quando i regimi che la preferiscono sono probabili. Ogni decisione resta in portafoglio **3 mesi** (media delle ultime 3 decisioni). Le preferenze in uso sono quelle **imparate**, solo la parte che cambia col regime (vedi Taratura); quelle teoriche di Dalio sono in `TILTS`.
 
 ## 3. Backtest (dal 2000, mensile)
 
@@ -38,24 +38,49 @@ Risultato al 22/11/2026 (luglio 2000 – ottobre 2026), con il tilt tarato:
 | Strategia | Rendimento annuo | Volatilità | Sharpe | Perdita massima |
 |---|---|---|---|---|
 | Risk parity | 5,6% | 6,3% | 0,60 | −15,5% |
-| Risk parity + regime (tarato) | 5,8% | 6,4% | 0,62 | −16,5% |
+| Risk parity + regime (tarato) | 5,9% | 6,3% | 0,65 | −16,9% |
 | 60/40 | 7,0% | 9,0% | 0,59 | −29,5% |
 
 ### Taratura del tilt (`rqe/calibrate.py`, `python -m app.cli rqe-taratura`)
 
-Per non adattare le regole al passato: i parametri si **scelgono solo sul 2000–2012** e si **giudicano sul 2013–oggi**, mai visto dalla scelta. Candidati (31):
+Per non adattare le regole al passato: i parametri si **scelgono solo sul 2000–2012** e si **giudicano sul 2013–oggi**, mai visto dalla scelta. Candidati (49):
 - preferenze teoriche con forza 0 / 0,25 / 0,5 / 1 (0 = risk parity puro);
 - σ 0,4 / 0,6 / 1,0;
 - probabilità medie su 1, 3 o 6 mesi;
-- preferenze **imparate in modo progressivo**: ogni mese si stimano solo dai mesi precedenti (rendimento del mese dopo rispetto al risk parity, pesato per la probabilità del regime), con prudenza statistica (poca storia → poco tilt) e almeno 5 anni di dati.
+- preferenze **imparate in modo progressivo**: ogni mese si stimano solo dai mesi precedenti (rendimento del mese dopo rispetto al risk parity, pesato per la probabilità del regime), con prudenza statistica (poca storia → poco tilt) e almeno 5 anni di dati;
+- **orizzonti più lunghi** (3, 6, 12 mesi): la decisione di ogni mese resta in portafoglio h mesi (portafogli sovrapposti: si tiene la media delle ultime h decisioni, quindi i limiti di ±10 punti restano rispettati) e le preferenze imparate si stimano sui rendimenti a h mesi, usando **solo finestre già chiuse**; con forza 0,5 o 1, preferenze teoriche o imparate;
+- **«solo regime»**: dalle preferenze imparate si toglie la media su tutti i regimi (per esempio «più oro sempre»), così resta solo il tempismo sui regimi.
 
 **Diagnosi:** la relazione regime → rendimento del mese dopo **cambia segno** tra i due periodi (per esempio materie prime in Goldilocks: +1,63% al mese in più nel 2000–2012, −1,17% nel 2013–2026). Le preferenze teoriche concordano col segno dei dati nel 32% dei casi nel primo periodo e nel 56% nel secondo.
 
-**Scelta (sul solo 2000–2012):** preferenze imparate, media di 3 mesi, σ 0,6, forza 0,5. **Verifica 2013–2026:** Sharpe 0,33 contro 0,30 del risk parity puro, rendimento annuo 3,7% contro 3,5%, perdita massima −16,5% contro −15,5%. **Statistica t 1,7** (serve circa 2): **la differenza può essere rumore**. L'errore dello Sharpe su 14 anni è circa ±0,27.
+**Diagnosi per orizzonte** (stesso segno del rendimento in più per regime e asset tra 2000–2012 e 2013–2026; accordo con la teoria nei due periodi):
 
-**Cosa hanno imparato le preferenze:** soprattutto più azioni e oro e meno TIPS e liquidità quasi in ogni regime, cioè una preferenza stabile per gli asset più rischiosi rispetto a un risk parity che pesa molto le obbligazioni, più che un vero tempismo sui regimi. L'unico segnale specifico è in stagflazione: meno azioni e materie prime, più Treasury lunghi e oro.
+| Orizzonte | Stesso segno | Correlazione tra periodi | Accordo con la teoria |
+|---|---|---|---|
+| 1 mese | 54% | −0,22 | 32% / 56% |
+| 3 mesi | 54% | −0,14 | 32% / 60% |
+| 6 mesi | 61% | −0,08 | 32% / 56% |
+| 12 mesi | 71% | +0,11 | 48% / 64% |
 
-**Conclusione:** il tilt è attivo come previsto dalla procedura (`TILT_MODE = "imparato"`, `SMOOTH_MONTHS = 3` in `config.py`), ma non ha ancora dimostrato un vantaggio reale e la dashboard lo dice. Per tornare alle preferenze teoriche basta `TILT_MODE = "teorico"`. La taratura va rifatta quando cambiano i segnali o le preferenze; il riepilogo è in `docs/rqe-taratura.json`.
+Più lungo è l'orizzonte, più la relazione è stabile, ma gran parte è comune a tutti i regimi (a 12 mesi l'oro batte il risk parity in tutti e quattro, la liquidità perde in quasi tutti). Il segnale specifico resta debole: in stagflazione azioni e materie prime vanno male nel 2000–2012 (−9% e −18% a 12 mesi) e bene nel 2013–2026 (+8% e +8%).
+
+**Il migliore per orizzonte** (scelto sul 2000–2012, Sharpe taratura → verifica, perdita massima in verifica, t in verifica):
+
+| Decisione tenuta | Candidato | Sharpe | Perdita max | t |
+|---|---|---|---|---|
+| 1 mese | imparato, forza 0,5 | 0,93 → 0,33 | −16,5% | 1,7 |
+| 3 mesi | imparato solo regime, forza 1 | 0,98 → 0,33 | −16,9% | 0,8 |
+| 6 mesi | imparato solo regime, forza 1 | 0,95 → 0,35 | −17,2% | 1,2 |
+| 12 mesi | teorico, forza 1 | 0,96 → 0,36 | −11,9% | 1,1 |
+| – | risk parity puro | 0,92 → 0,30 | −15,5% | – |
+
+**Scelta (sul solo 2000–2012):** preferenze imparate, solo regime, decisione tenuta 3 mesi, media di 3 mesi, σ 0,6, forza 1. **Verifica 2013–2026:** Sharpe 0,33 contro 0,30 del risk parity puro, rendimento annuo 3,7% contro 3,5%, perdita massima −16,9% contro −15,5%. **Statistica t 0,8**: **la differenza può essere rumore**. L'errore dello Sharpe su 14 anni è circa ±0,27, e tutti i candidati stanno dentro questo errore.
+
+**Da notare, ma non usato per scegliere:** le preferenze **teoriche** di Dalio tenute **12 mesi** sono l'unico candidato migliore del risk parity in entrambi i periodi anche sul rischio (perdita massima −10,0% e −11,9% contro −10,9% e −15,5%). Sceglierle adesso vorrebbe dire usare il periodo di verifica per decidere, quindi la regola resta quella stabilita prima; la scelta è dell'utente (`TILT_MODE = "teorico"`, `HORIZON = 12`, `TILT_STRENGTH = 1.0`).
+
+**Cosa hanno imparato le preferenze (solo regime):** oggi, in reflazione, più azioni e materie prime e meno oro e Treasury intermedi, in linea con la teoria; in stagflazione meno azioni e materie prime, più Treasury lunghi.
+
+**Conclusione:** il tilt è attivo come previsto dalla procedura (`TILT_MODE = "imparato"`, `HORIZON = 3`, `SOLO_REGIME = True`, `TILT_STRENGTH = 1.0`, `SMOOTH_MONTHS = 3` in `config.py`), ma non ha ancora dimostrato un vantaggio reale e la dashboard lo dice. Per tornare alle preferenze teoriche basta `TILT_MODE = "teorico"`. La taratura va rifatta quando cambiano i segnali o le preferenze; il riepilogo è in `docs/rqe-taratura.json`.
 
 ## 4. Alert
 

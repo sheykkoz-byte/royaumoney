@@ -184,3 +184,46 @@ def test_tilt_with_custom_preferences():
     prefs = {q: {"equity": 1.0, "long_tsy": -1.0, "cash": 0.0} for q in "ABCD"}
     w = allocation.tilt(base, {"A": 1, "B": 0, "C": 0, "D": 0}, tilts=prefs, max_dev=0.1)
     assert w["equity"] == pytest.approx(0.6) and w["long_tsy"] == pytest.approx(0.4)
+
+
+def test_horizon_learning_uses_only_completed_windows():
+    """With h = 12 a decision at s needs returns up to s + 12: windows still open at t are
+    ignored, so changing the 11 months before t (only in open windows) changes nothing."""
+    from app.rqe import calibrate
+
+    r = monthly_returns({a: 0.03 for a in C.RISKY}, n=110, seed=5)
+    probs = pd.DataFrame({"A": .7, "B": .1, "C": .1, "D": .1}, index=r.index)
+    t = r.index[100]
+    before = calibrate.learned_preferences(r, probs, t, horizon=12)
+    r2 = r.copy()
+    r2.loc[r.index[100]:, "gold"] = 0.4  # future
+    assert calibrate.learned_preferences(r2, probs, t, horizon=12) == before
+    r3 = r.copy()
+    r3.loc[r.index[99], "gold"] = 0.4  # last month before t: closes the window started at 87
+    assert calibrate.learned_preferences(r3, probs, t, horizon=12) != before
+
+
+def test_regime_only_preferences_remove_the_common_part():
+    from app.rqe import calibrate
+
+    r = monthly_returns({a: 0.03 for a in C.RISKY}, n=90, seed=6)
+    probs = pd.DataFrame({q: .25 for q in "ABCD"}, index=r.index)  # regime says nothing
+    prefs = calibrate.learned_preferences(r, probs, r.index[-1], horizon=3, demean=True)
+    assert all(abs(v) < 1e-9 for q in prefs for v in prefs[q].values())
+
+
+def test_hold_averages_the_last_decisions():
+    from app.rqe import calibrate
+
+    base = {"equity": .5, "long_tsy": .5}
+    decisions = iter([{"equity": .6, "long_tsy": .4, "cash": 0.0},
+                      {"equity": .4, "long_tsy": .5, "cash": .1},
+                      {"equity": .5, "long_tsy": .4, "cash": .1}])
+    held = calibrate.hold(lambda b, p, t, h: next(decisions), 2)
+    w1 = held(base, {}, None, None)
+    assert w1["equity"] == pytest.approx(.6)
+    w2 = held(base, {}, None, None)  # average of +0.1 and −0.1 on equity
+    assert w2["equity"] == pytest.approx(.5) and w2["cash"] == pytest.approx(.05)
+    w3 = held(base, {}, None, None)  # first decision dropped
+    assert w3["long_tsy"] == pytest.approx(.45) and sum(w3.values()) == pytest.approx(1)
+    assert calibrate.hold(len, 1) is len  # horizon 1: unchanged

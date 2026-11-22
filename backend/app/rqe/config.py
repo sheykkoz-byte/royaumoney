@@ -84,12 +84,17 @@ TILTS: dict[str, dict[str, float]] = {
     "D": {"equity": -0.5, "long_tsy": 1.0, "int_tsy": 0.5, "tips": -0.5, "gold": 0.0,
           "commodities": -1.0, "cash": 0.5},
 }
-TILT_STRENGTH = 0.5  # weight × (1 + strength × expected preference)
-# Chosen by the calibration (rqe/calibrate.py, train 2000-2012, judged on 2013+):
-# "imparato" = preferences learned walk-forward from earlier months only; "teorico" = TILTS.
-# Probabilities averaged over SMOOTH_MONTHS months to limit flip-flops.
+# Chosen by the calibration (rqe/calibrate.py, train 2000-2012, judged on 2013+; see
+# docs/rqe-taratura.json). "imparato" = preferences learned walk-forward from earlier
+# months only; "teorico" = TILTS. Probabilities averaged over SMOOTH_MONTHS months.
+TILT_STRENGTH = 1.0  # weight × (1 + strength × expected preference)
 TILT_MODE = "imparato"
 SMOOTH_MONTHS = 3
+# Months a regime decision is held (overlapping portfolios) and over which preferences are
+# learned. SOLO_REGIME: keep only the part of the learned preference that changes with the
+# regime (no static over/underweight common to all quadrants).
+HORIZON = 3
+SOLO_REGIME = True
 MAX_DEVIATION = 0.10  # each tilted weight stays within ±10 points of the base weight
 COST_BPS = 10  # transaction cost per unit of turnover, in basis points
 

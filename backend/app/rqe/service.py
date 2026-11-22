@@ -67,13 +67,17 @@ def snapshot(session: Session, today: date | None = None) -> dict:
         probs_tilt = {q: float(smoothed[q]) for q in C.QUADRANTS}
     else:
         probs_tilt = {}
+    cfg = {"tipo": C.TILT_MODE, "forza": C.TILT_STRENGTH, "orizzonte": C.HORIZON,
+           "solo_regime": C.SOLO_REGIME}
+    cache: dict = {}
     if C.TILT_MODE == "imparato":
-        prefs = calibrate.learned_preferences(rets, probs_hist, as_of + pd.offsets.MonthEnd(1))
-        tilt_fn = calibrate.learned(probs_hist)
+        prefs = calibrate.learned_preferences(rets, probs_hist, as_of + pd.offsets.MonthEnd(1),
+                                              cache, C.HORIZON, C.SOLO_REGIME)
     else:
-        prefs, tilt_fn = C.TILTS, None
-    tilted = allocation.tilt(base, probs_tilt, tilts=prefs) if probs_tilt and prefs else {}
-    bt = backtest.run(rets, probs_hist, tilt_fn=tilt_fn)
+        prefs = C.TILTS
+    tilted = _current_tilt(cfg, rets, probs_hist, probs_tilt, base, as_of, cache) \
+        if probs_tilt and prefs else {}
+    bt = backtest.run(rets, probs_hist, tilt_fn=calibrate.candidate_fn(cfg, probs_hist, cache))
     changes = macro.regime_changes(hist)
     calib = json.loads(CALIBRATION.read_text(encoding="utf-8")) if CALIBRATION.exists() else None
     return {
@@ -93,6 +97,7 @@ def snapshot(session: Session, today: date | None = None) -> dict:
             "righe": allocation.explain(base, tilted, probs_tilt, prefs) if tilted else [],
             "limiti": {"scostamento_massimo": C.MAX_DEVIATION, "forza_tilt": C.TILT_STRENGTH},
             "tilt": {"modo": C.TILT_MODE, "media_mesi": C.SMOOTH_MONTHS,
+                     "orizzonte_mesi": C.HORIZON, "solo_regime": C.SOLO_REGIME,
                      "probabilita_usate": {q: round(p, 3) for q, p in probs_tilt.items()},
                      "preferenze": {q: {a: round(v, 2) for a, v in d.items()}
                                     for q, d in (prefs or {}).items()},
@@ -120,11 +125,28 @@ def snapshot(session: Session, today: date | None = None) -> dict:
     }
 
 
+def _current_tilt(cfg: dict, rets: pd.DataFrame, probs_hist: pd.DataFrame,
+                  probs_now: dict, base: dict, as_of: pd.Timestamp, cache: dict) -> dict:
+    """Today's tilted weights. With a horizon of h months the decision of each of the last
+    h - 1 month-ends is still held: replay them, then add today's decision."""
+    fn = calibrate.candidate_fn(cfg, probs_hist, cache)
+    h = cfg["orizzonte"]
+    past = [m for m in probs_hist.index if m < as_of and m in rets.index]
+    for m in (past[-(h - 1):] if h > 1 else []):
+        b = allocation.risk_parity(rets.loc[:m])
+        if len(b) >= 3:
+            fn(b, {q: float(probs_hist.loc[m, q]) for q in C.QUADRANTS}, m, rets.loc[:m])
+    return fn(base, probs_now, as_of + pd.offsets.MonthEnd(1), rets)
+
+
 def export(session: Session, out: Path = OUT, today: date | None = None) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(snapshot(session, today), ensure_ascii=False,
                               separators=(",", ":"), default=str), encoding="utf-8")
     return out
+
+
+KEYS = ("tipo", "sigma", "media_mesi", "forza", "orizzonte", "solo_regime")
 
 
 def calibrate_and_save(session: Session, out: Path = CALIBRATION) -> dict:
@@ -134,21 +156,20 @@ def calibrate_and_save(session: Session, out: Path = CALIBRATION) -> dict:
     res = calibrate.evaluate(rets, hist)
     best = calibrate.choose(res)
     probs = calibrate.probs_from_scores(hist, best["sigma"], best["media_mesi"])
-    fn = calibrate.learned(probs, best["forza"]) if best["tipo"] == "imparato" else \
-        calibrate.theoretical(best["forza"])
-    r = backtest.run(rets, probs, tilt_fn=fn)["returns"]
+    r = backtest.run(rets, probs, tilt_fn=calibrate.candidate_fn(best, probs))["returns"]
     summary = {
         "generata": datetime.now().isoformat(timespec="minutes"),
         "periodi": {"taratura": f"2000 – {calibrate.TRAIN_END[:4]}",
                     "verifica": f"{calibrate.TEST_START[:4]} – oggi"},
-        "scelto": {k: best[k] for k in ("tipo", "sigma", "media_mesi", "forza")},
+        "scelto": {k: best[k] for k in KEYS},
         "risk_parity": {"train": best["rp_train"], "test": best["rp_test"]},
         "scelto_stats": {"train": best["train"], "test": best["test"]},
         "significativita_test": calibrate.significance(r["rp_tilt"], r["rp"],
                                                        start=calibrate.TEST_START),
-        "candidati": [{k: c[k] for k in ("tipo", "sigma", "media_mesi", "forza")}
+        "candidati": [{k: c[k] for k in KEYS}
                       | {"sharpe_train": c["train"]["sharpe"], "sharpe_test": c["test"]["sharpe"],
-                         "dd_test": c["test"]["max_drawdown"]}
+                         "dd_train": c["train"]["max_drawdown"],
+                         "dd_test": c["test"]["max_drawdown"], "t_test": c["t_test"]}
                       for c in sorted(res, key=lambda x: -x["train"]["sharpe"])],
     }
     out.write_text(json.dumps(summary, ensure_ascii=False, indent=1, default=str) + "\n",

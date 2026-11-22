@@ -110,6 +110,11 @@ function Prefs({ prefs, quadranti }: { prefs: Record<string, Record<string, numb
   );
 }
 
+function candLabel(c: any): string {
+  if (c.tipo !== "imparato") return "teorico";
+  return c.solo_regime ? "imparato, solo regime" : "imparato";
+}
+
 function Calibration({ t, tilt, quadranti }: { t: any; tilt: any; quadranti: any }) {
   const sig = t.significativita_test;
   const rpT = t.risk_parity.test, chT = t.scelto_stats.test;
@@ -119,7 +124,7 @@ function Calibration({ t, tilt, quadranti }: { t: any; tilt: any; quadranti: any
       <h2>Taratura del tilt</h2>
       <div className={`rq-verdict${significant ? " ok" : ""}`}>
         <b>{significant ? "Il tilt aggiunge valore in modo distinguibile dal caso." : "Il tilt non ha ancora dimostrato un vantaggio reale."}</b>{" "}
-        Scelto guardando solo il periodo {t.periodi.taratura}: {t.scelto.tipo === "imparato" ? "preferenze imparate dai mesi precedenti" : "preferenze teoriche"}, probabilità medie su {t.scelto.media_mesi} mesi, forza {itNum(t.scelto.forza, 2)}.
+        Scelto guardando solo il periodo {t.periodi.taratura}: {t.scelto.tipo === "imparato" ? `preferenze imparate dai mesi precedenti${t.scelto.solo_regime ? " (solo la parte che cambia col regime)" : ""}` : "preferenze teoriche"}, decisione tenuta {t.scelto.orizzonte ?? 1} {(t.scelto.orizzonte ?? 1) === 1 ? "mese" : "mesi"}, probabilità medie su {t.scelto.media_mesi} mesi, forza {itNum(t.scelto.forza, 2)}.
         Nel periodo mai visto ({t.periodi.verifica}) Sharpe {itNum(chT.sharpe, 2)} contro {itNum(rpT.sharpe, 2)} del risk parity puro, rendimento annuo {pct(chT.cagr, 1)} contro {pct(rpT.cagr, 1)},
         perdita massima {pct(chT.max_drawdown, 1)} contro {pct(rpT.max_drawdown, 1)}. Statistica t {itNum(sig.t, 1)} (serve circa 2): {significant ? "" : "la differenza può essere rumore."}
       </div>
@@ -133,17 +138,32 @@ function Calibration({ t, tilt, quadranti }: { t: any; tilt: any; quadranti: any
           <Prefs prefs={tilt.preferenze_teoriche} quadranti={quadranti} />
         </div>
       </div>
+      <h3>Per orizzonte: il migliore sul periodo di taratura</h3>
+      <table className="rq-table">
+        <thead><tr><th>Decisione tenuta</th><th>Tipo</th><th>Forza</th><th>Sharpe taratura</th><th>Sharpe verifica</th><th>Perdita max verifica</th><th>t verifica</th></tr></thead>
+        <tbody>
+          {[1, 3, 6, 12].map((h) => {
+            const c = t.candidati.find((x: any) => (x.orizzonte ?? 1) === h && x.forza > 0);
+            if (!c) return null;
+            return (
+              <tr key={h}><td>{h} {h === 1 ? "mese" : "mesi"}</td><td>{candLabel(c)}</td><td>{itNum(c.forza, 2)}</td>
+                <td>{itNum(c.sharpe_train, 2)}</td><td>{itNum(c.sharpe_test, 2)}</td><td className="down">{pct(c.dd_test, 1)}</td><td>{c.t_test == null ? "–" : itNum(c.t_test, 1)}</td></tr>
+            );
+          })}
+          <tr><td>–</td><td>risk parity puro</td><td>0</td><td>{itNum(t.risk_parity.train.sharpe, 2)}</td><td>{itNum(rpT.sharpe, 2)}</td><td className="down">{pct(rpT.max_drawdown, 1)}</td><td>–</td></tr>
+        </tbody>
+      </table>
       <h3>Candidati provati (ordinati sul periodo di taratura)</h3>
       <table className="rq-table">
-        <thead><tr><th>Tipo</th><th>σ</th><th>Media mesi</th><th>Forza</th><th>Sharpe taratura</th><th>Sharpe verifica</th><th>Perdita max verifica</th></tr></thead>
+        <thead><tr><th>Tipo</th><th>Orizzonte</th><th>σ</th><th>Media mesi</th><th>Forza</th><th>Sharpe taratura</th><th>Sharpe verifica</th><th>Perdita max verifica</th></tr></thead>
         <tbody>
-          {t.candidati.slice(0, 8).map((c: any, i: number) => (
-            <tr key={i} className={i === 0 ? "rq-best" : ""}><td>{c.forza === 0 ? "risk parity puro" : c.tipo}</td><td>{itNum(c.sigma, 1)}</td><td>{c.media_mesi}</td><td>{itNum(c.forza, 2)}</td>
+          {t.candidati.slice(0, 10).map((c: any, i: number) => (
+            <tr key={i} className={i === 0 ? "rq-best" : ""}><td>{c.forza === 0 ? "risk parity puro" : candLabel(c)}</td><td>{c.orizzonte ?? 1} m</td><td>{itNum(c.sigma, 1)}</td><td>{c.media_mesi}</td><td>{itNum(c.forza, 2)}</td>
               <td>{itNum(c.sharpe_train, 2)}</td><td>{itNum(c.sharpe_test, 2)}</td><td className="down">{pct(c.dd_test, 1)}</td></tr>
           ))}
         </tbody>
       </table>
-      <p className="rq-note">Le preferenze imparate si stimano ogni mese solo dai mesi precedenti (con prudenza: poca storia, poco tilt). Oggi indicano soprattutto più azioni e oro e meno TIPS e liquidità quasi in ogni regime: è più una preferenza stabile che un vero tempismo sui regimi. Si rifà con <code>python -m app.cli rqe-taratura</code>.</p>
+      <p className="rq-note">Con un orizzonte di h mesi la decisione di ogni mese resta in portafoglio per h mesi (si tiene la media delle ultime h decisioni) e le preferenze imparate si stimano sui rendimenti a h mesi, solo da finestre già chiuse. «Solo regime» toglie la parte comune a tutti i regimi (per esempio «più oro sempre»), così resta solo il vero tempismo. Le differenze di Sharpe sotto 0,27 stanno dentro l&apos;errore statistico. Si rifà con <code>python -m app.cli rqe-taratura</code>.</p>
     </section>
   );
 }
@@ -225,7 +245,7 @@ export default function RegimePage() {
             ))}
           </tbody>
         </table>
-        <p className="rq-note">Pesi di base inversamente proporzionali alla volatilità degli ultimi 12 mesi; tilt con probabilità medie su {al.tilt.media_mesi} mesi e preferenze {al.tilt.modo === "imparato" ? "imparate dai dati (vedi Taratura)" : "teoriche"}; scostamento massimo ±{itNum(al.limiti.scostamento_massimo * 100)} punti. Allocazione modello a scopo di ricerca, non consulenza personalizzata.</p>
+        <p className="rq-note">Pesi di base inversamente proporzionali alla volatilità degli ultimi 12 mesi; tilt con probabilità medie su {al.tilt.media_mesi} mesi, decisione tenuta {al.tilt.orizzonte_mesi ?? 1} mesi e preferenze {al.tilt.modo === "imparato" ? "imparate dai dati (vedi Taratura)" : "teoriche"}; scostamento massimo ±{itNum(al.limiti.scostamento_massimo * 100)} punti. Allocazione modello a scopo di ricerca, non consulenza personalizzata.</p>
       </section>
 
       {d.taratura && <Calibration t={d.taratura} tilt={al.tilt} quadranti={d.quadranti} />}
