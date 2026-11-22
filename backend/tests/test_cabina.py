@@ -65,7 +65,14 @@ def test_tile_from_series():
     t = tile(m, daily([15.0] * 30 + [30.0]))
     assert t["value"] == 30.0 and t["state"] == "rosso"
     assert t["changes"]["1g"] == pytest.approx(100.0)
-    assert t["tv"] == "TVC:VIX"
+    assert t["tv"] == "CAPITALCOM:VIX"
+
+
+def test_no_symbol_refused_by_tradingview_widgets():
+    # TradingView refuses its TVC indices and CME/ICE futures in embedded charts
+    refused = ("TVC:DXY", "TVC:VIX", "TVC:US", "COMEX:", "NYMEX:", "CBOT:", "ICEUS:")
+    for m in METRICS:
+        assert not (m.tv and any(r in m.tv for r in refused)), m.tv
 
 
 def test_tile_without_data_says_so():
