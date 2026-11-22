@@ -7,6 +7,7 @@ import Card from "@/components/Cards";
 import Chart from "@/components/Chart";
 import type { OrbMode, OrbSignals } from "@/components/Orb";
 import { EMPTY_STAGE, applyCue, splitSentences, wsUrl, type Risposta, type Stage } from "@/lib/jarvis";
+import { measure, resetBands } from "@/lib/audio";
 import { play, playAudio, stopAudio, stopSpeaking } from "@/lib/voice";
 
 const Orb = dynamic(() => import("@/components/Orb"), { ssr: false });
@@ -18,7 +19,7 @@ const STATUS: Record<OrbMode, string> = { idle: "PRONTO", listen: "IN ASCOLTO", 
 type Recognition = any;
 
 export default function Jarvis() {
-  const signals = useRef<OrbSignals>({ mode: "idle", mic: 0, spike: 0, voice: -1 });
+  const signals = useRef<OrbSignals>({ mode: "idle", mic: 0, spike: 0, voice: -1, cue: 0 });
   const [mode, setModeState] = useState<OrbMode>("idle");
   const [stage, setStage] = useState<Stage>(EMPTY_STAGE);
   const [you, setYou] = useState("");
@@ -46,6 +47,7 @@ export default function Jarvis() {
     const handlers = {
       onCue: (i: number) => {
         const cue = r.scene[i];
+        signals.current.cue += 1; // the orb sends a shockwave when a scene starts
         setStage((s) => applyCue(s, cue, performance.now() - t0));
         setShown((n) => Math.max(n, cue.char_index));
       },
@@ -123,18 +125,17 @@ export default function Jarvis() {
     const an = ctx.createAnalyser();
     an.fftSize = 512;
     ctx.createMediaStreamSource(stream).connect(an);
-    const buf = new Uint8Array(an.fftSize);
+    const time = new Uint8Array(an.fftSize), freq = new Uint8Array(an.frequencyBinCount);
     let live = true;
     const tick = () => {
       if (!live) return;
-      an.getByteTimeDomainData(buf);
-      let s = 0;
-      for (const v of buf) { const x = (v - 128) / 128; s += x * x; }
-      signals.current.mic = Math.sqrt(s / buf.length);
+      signals.current.mic = measure(an, freq, time);
       requestAnimationFrame(tick);
     };
     tick();
-    const release = () => { live = false; stream.getTracks().forEach((t) => t.stop()); ctx.close(); };
+    const release = () => {
+      live = false; resetBands(); stream.getTracks().forEach((t) => t.stop()); ctx.close();
+    };
 
     setMode("listen");
     setYou("› …");
