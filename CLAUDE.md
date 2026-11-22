@@ -34,11 +34,11 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 
 ## Jarvis (Fase 4)
 - `backend/app/jarvis/`: `tools.py` (strumenti in formato tool use, unica fonte dei numeri), `claude_brain.py` (Claude con tool use + risposta JSON a schema), `voice.py` (ElevenLabs con timestamp), `scene.py` (direttore di scena: valida, allinea le parole, allega i dati), `demo.py` (cervello senza AI), `session.py` (sceglie il cervello).
-- Frontend: `src/app/page.tsx` (Jarvis), `src/components/{Orb,Chart,Cards}.tsx`, `src/lib/{jarvis,voice}.ts`. La pagina di stato è in `src/app/stato/`.
+- Frontend: `src/app/jarvis/page.tsx` (Jarvis), `src/components/{Orb,Chart,Cards}.tsx`, `src/lib/{jarvis,voice}.ts`. La pagina di stato è in `src/app/stato/`.
 - Regola: il modello non scrive mai numeri nei grafici; il direttore li prende dagli strumenti.
 
 ## Cabina del trader (uso personale)
-- Piattaforma di sola visione su `/cabina` per il monitor 49" 32:9: watchlist con preferiti, grafico TradingView, grafici di controllo, plancia macro con semafori, colonna Jarvis. Dettagli in `docs/cabina.md`.
+- Piattaforma di sola visione, pagina principale `/` (Jarvis su `/jarvis`), per il monitor 49" 32:9: watchlist con preferiti, grafico TradingView, grafici di controllo, plancia macro con semafori, colonna Jarvis. Dettagli in `docs/cabina.md`.
 - Plancia: `backend/app/cabina.py` → `frontend/public/cabina/macro.json` (`python -m app.cli cabina`). Regole dei semafori in `RULES`, con test.
 - Nei widget TradingView i simboli TVC e i future CME/ICE non sono concessi: usare CFD, FRED o altri fornitori (tabella in `docs/cabina.md`). Verificare ogni simbolo nuovo aprendolo.
 - Online privato: Vercel + `CABINA_PASSWORD` (`frontend/src/middleware.ts`).

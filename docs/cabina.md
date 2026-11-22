@@ -1,6 +1,6 @@
 # Cabina del trader (uso personale)
 
-Piattaforma **di sola visione** (nessun ordine): `frontend/src/app/cabina/`, all'indirizzo `/cabina`.
+Piattaforma **di sola visione** (nessun ordine): è la **pagina principale** del sito (`frontend/src/app/page.tsx`, indirizzo `/`; `/cabina` porta lì). Jarvis con la sfera grande è su `/jarvis`.
 
 ## Disposizione
 
