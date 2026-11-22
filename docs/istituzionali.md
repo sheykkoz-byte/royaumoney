@@ -37,6 +37,14 @@ Regole tutte in `institutions/config.py`, test in `backend/tests/test_institutio
 - **Lente Buffett** (`analysis.buffett`): ROE ≥ 15%, debito/EBITDA ≤ 2, margine operativo ≥ 15%, flusso di cassa libero positivo, rendimento degli utili sopra il Treasury 10 anni, margine di sicurezza ≥ 25%. Valore intrinseco con flussi di cassa scontati (`analysis.dcf`): flusso di cassa libero degli ultimi 12 mesi che cresce come gli utili (tetto 12%) e scende fino al 2,5% in 10 anni, tasso di sconto = max(8%, Treasury 10 anni + 5%), più cassa meno debito; tre scenari (crescita dimezzata, base, ×1,5 con tetto). Niente valore intrinseco se i bilanci non sono in dollari.
 - **Lente Dalio** (`analysis.sector_by_regime`): rendimento in più del fondo settoriale SPDR (XLK, XLE…) rispetto all'S&P 500 nel mese dopo ogni mese in cui ciascun regime era il più probabile, dal 1999 (XLC dal 2018, XLRE dal 2015), e la media pesata con le probabilità di oggi. Mostrato accanto alla teoria: al 22/11/2026 i settori «da reflazione» (energia, industria, materiali) hanno storicamente fatto peggio dell'S&P 500 nei mesi di reflazione, la tecnologia meglio.
 
+## «Chiedi a Claude» sul sito
+
+Route `frontend/src/app/api/analisi/route.ts` (server, Node): legge i dati del giorno (13F e regime, inclusi nel deploy a ogni aggiornamento) e chiede a Claude (`claude-opus-5-5`, effort medium, con fallback lato server se una richiesta viene rifiutata) un'analisi in streaming. Componente `src/components/AskClaude.tsx`, presente nella scheda di ogni titolo, in `/istituzionali` e in `/regime`.
+
+- Serve la variabile `ANTHROPIC_API_KEY` nelle impostazioni del progetto su Vercel (solo lato server, mai nel browser né nel repository). Senza, il riquadro spiega cosa manca.
+- Il sito è dietro la password (`middleware.ts`), quindi anche la route.
+- Costo: circa 5–6 mila token di contesto per domanda, pochi centesimi.
+
 ## Artefatto claude.ai
 
 `frontend/artifact-ricerca/`: `template.html` + `build.py` (incorpora regime, taratura e 13F in una pagina). Si pubblica con la capacità `sample`: il pulsante «Chiedi a Claude» fa analizzare i dati a Claude sull'account di chi guarda, senza chiavi, con l'istruzione di non inventare numeri.

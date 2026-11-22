@@ -4,6 +4,7 @@
 // Data: /istituzionali/13f.json, written by `python -m app.cli istituzionali`.
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import AskClaude from "@/components/AskClaude";
 import IdeaSheet from "@/components/IdeaSheet";
 import { itNum } from "@/lib/jarvis";
 
@@ -166,6 +167,15 @@ export default function IstituzionaliPage() {
             <li>Comprato da più gestori nello stesso trimestre: punto in più.</li>
           </ul>
         </div>
+      </section>
+
+      <section className="rq-card ac-box">
+        <h2>Chiedi a Claude un&apos;analisi</h2>
+        <AskClaude placeholder="Es. «Ha senso seguire Berkshire su Lennar?»" quick={[
+          { label: "Conclusione complessiva", domanda: "Dammi la conclusione complessiva: in che regime siamo e quali posizioni dei gestori discrezionali hanno ancora margine di ingresso, buona qualità alla Buffett e un settore coerente con il regime (teoria e storia). Elenca le 3-5 idee migliori e le 3 da evitare, con il motivo." },
+          { label: "Dove c'è ancora margine?", domanda: "Tra le idee, dove c'è ancora margine rispetto al prezzo pagato dai gestori E margine di sicurezza alla Buffett E un regime favorevole al settore? Ordina dalla più solida alla meno solida." },
+          { label: "Cosa può andare storto?", domanda: "Cosa può andare storto nel seguire queste posizioni adesso? Considera ritardo dei dati, regime che potrebbe cambiare, titoli scesi molto dal loro ingresso, concentrazione in un settore." },
+        ]} />
       </section>
 
       <section className="rq-card">

@@ -53,6 +53,7 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - `backend/app/sources/sec13f.py` (EDGAR, emendamenti, unità in migliaia), `sources/openfigi.py` (CUSIP → ticker, cache), `app/institutions/` (`config.py` gestori e regole, `analysis.py` puro: variazioni, split, cambi di CUSIP, prezzo pagato stimato, favore del regime, qualità, giudizio; `service.py` → `frontend/public/istituzionali/13f.json`, `python -m app.cli istituzionali`).
 - Pagina `/istituzionali`. Artefatto claude.ai con analisi di Claude: `frontend/artifact-ricerca/` (`build.py`, capacità `sample`). Dettagli in `docs/istituzionali.md`.
 - Rete dell'ambiente: www.sec.gov, data.sec.gov, api.openfigi.com.
+- «Chiedi a Claude» sul sito: `frontend/src/app/api/analisi/route.ts` + `src/components/AskClaude.tsx`; chiave `ANTHROPIC_API_KEY` come variabile d'ambiente su Vercel (lato server).
 
 ## Comandi
 `make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make previsioni` · `make previsione ID=…` · `make track-record` · `python -m app.cli cabina` · `python -m app.cli istituzionali` · `make dev` · `make test` · `make lint`

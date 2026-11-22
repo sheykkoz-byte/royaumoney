@@ -2,6 +2,7 @@
 
 // Deep dive on one stock bought by the managers: price since their entry, Buffett's lens
 // (quality, value, margin of safety) and Dalio's lens (how the sector behaves by regime).
+import AskClaude from "@/components/AskClaude";
 import Sheet from "@/components/ui/Sheet";
 import { itNum } from "@/lib/jarvis";
 
@@ -92,6 +93,15 @@ export default function IdeaSheet({ idea, onClose }: { idea: any | null; onClose
         <h3>In sintesi</h3>
         <ul className="sh-list">{sintesi.map((t) => <li key={t}>{t}</li>)}</ul>
         {a.avviso && <p className="in-warn">{a.avviso}</p>}
+      </div>
+
+      <div className="ac-box">
+        <h3>Chiedi a Claude un&apos;analisi di {idea.ticker}</h3>
+        <AskClaude ticker={idea.ticker} placeholder={`Es. «Conviene entrare su ${idea.ticker} adesso o aspettare?»`} quick={[
+          { label: "Analisi completa", domanda: `Analizza ${idea.ticker} incrociando le due lenti: chi l'ha comprato e quanto, prezzo pagato stimato rispetto a oggi, qualità e valore alla Buffett (margine di sicurezza), regime macro e storia del settore alla Dalio. C'è ancora margine per entrare come hanno fatto loro? Dammi una conclusione chiara.` },
+          { label: "Cosa può andare storto", domanda: `Quali sono i rischi principali nel seguire i gestori su ${idea.ticker} adesso? Considera ritardo dei dati, prezzo, valutazione, regime che potrebbe cambiare.` },
+          { label: "A che prezzo entrerei", domanda: `In base al valore intrinseco stimato, al prezzo pagato dai gestori e al margine di sicurezza richiesto da Buffett, quale fascia di prezzo renderebbe ${idea.ticker} interessante? Spiega il calcolo usando solo i dati.` },
+        ]} />
       </div>
 
       <div>

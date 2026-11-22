@@ -5,6 +5,7 @@
 // 2000, All Weather allocation with the regime tilt, backtest against a 60/40, alerts.
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import AskClaude from "@/components/AskClaude";
 import Sheet from "@/components/ui/Sheet";
 import { itNum } from "@/lib/jarvis";
 import { GLOSSARIO, SPIEGAZIONI } from "@/lib/regimi";
@@ -375,6 +376,15 @@ export default function RegimePage() {
       </section>
 
       <Glossary />
+
+      <section className="rq-card ac-box">
+        <h2>Chiedi a Claude</h2>
+        <AskClaude placeholder="Es. «Cosa cambierebbe se passassimo in stagflazione?»" quick={[
+          { label: "Spiegami il regime di oggi", domanda: "Spiegami in parole semplici il regime di oggi: perché il modello lo vede, quanto è sicuro, cosa vuol dire per i mercati e cosa guardare per capire se sta cambiando." },
+          { label: "Come mi posiziono?", domanda: "Con il regime di oggi, come si posizionerebbe un portafoglio All Weather con il tilt? Spiega i pesi, cosa si sovrappesa e cosa si sottopesa, e quanto fidarsi del tilt visti i test." },
+          { label: "E se il regime cambia?", domanda: "Quale regime è il secondo più probabile e cosa cambierebbe nell'allocazione e nei settori favoriti se diventasse il principale?" },
+        ]} />
+      </section>
 
       <section className="rq-card">
         <h2>Allocazione modello · All Weather con tilt per regime</h2>
