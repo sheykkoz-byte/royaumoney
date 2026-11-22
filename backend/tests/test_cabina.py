@@ -65,7 +65,7 @@ def test_tile_from_series():
     t = tile(m, daily([15.0] * 30 + [30.0]))
     assert t["value"] == 30.0 and t["state"] == "rosso"
     assert t["changes"]["1g"] == pytest.approx(100.0)
-    assert t["tv"] == "CAPITALCOM:VIX"
+    assert t["tv"] == "FRED:VIXCLS"  # official index, same number as the tile
 
 
 def test_no_symbol_refused_by_tradingview_widgets():
