@@ -17,8 +17,14 @@ STRATEGIES = {"rp": "Risk parity (All Weather)", "rp_tilt": "Risk parity + regim
               "bench": "60/40 (azioni/Treasury intermedi)"}
 
 
-def run(returns: pd.DataFrame, probs: pd.DataFrame, cost_bps: float = C.COST_BPS) -> dict:
-    """``returns``: monthly returns per asset; ``probs``: columns A-D (+ dominante)."""
+def run(returns: pd.DataFrame, probs: pd.DataFrame, cost_bps: float = C.COST_BPS,
+        tilt_fn=None) -> dict:
+    """``returns``: monthly returns per asset; ``probs``: columns A-D (+ dominante).
+
+    ``tilt_fn(base, probs_at_t, t, returns_up_to_t) -> weights`` replaces the default tilt
+    (used by the calibration to try variants); it must only use information up to t.
+    """
+    tilt_fn = tilt_fn or (lambda base, p, t, hist: allocation.tilt(base, p))
     dates = returns.index
     weights: dict[str, dict] = {k: {} for k in STRATEGIES}
     rets: dict[str, list] = {k: [] for k in STRATEGIES}
@@ -32,7 +38,7 @@ def run(returns: pd.DataFrame, probs: pd.DataFrame, cost_bps: float = C.COST_BPS
         if len(base) < 3 or t not in probs.index:
             continue
         p = {q: float(probs.loc[t, q]) for q in C.QUADRANTS}
-        ws = {"rp": base, "rp_tilt": allocation.tilt(base, p),
+        ws = {"rp": base, "rp_tilt": tilt_fn(base, p, t, hist),
               "bench": {"equity": 0.6, "int_tsy": 0.4}}
         r_next = returns.loc[nxt]
         for k, w in ws.items():

@@ -482,3 +482,8 @@ button.mt:hover { border-color: rgba(139,124,255,.55); background: rgba(139,124,
 .rq-alerts i { font-style: normal; }
 @media (max-width: 960px) { .rq-grid, .rq-grid.two { grid-template-columns: 1fr; } .rq-prob { grid-template-columns: 120px 1fr 44px; } }
 @media (prefers-reduced-motion: reduce) { .rq-ping, .rq-curve { animation: none; } .rq-bar i { transition: none; } }
+.rq-verdict { border: 1px solid rgba(255, 195, 90, .4); background: rgba(255, 195, 90, .07); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; line-height: 1.6; margin-bottom: 8px; }
+.rq-verdict.ok { border-color: rgba(61, 220, 151, .45); background: rgba(61, 220, 151, .07); }
+.rq-heat td { text-align: center; font-family: "JetBrains Mono", monospace; font-size: 12px; }
+.rq-heat td:first-child { text-align: left; font-family: inherit; white-space: nowrap; }
+.rq-best td { color: var(--cyan); }

@@ -88,6 +88,66 @@ function Curves({ curve, names }: { curve: any[]; names: Record<string, string> 
   );
 }
 
+const ASSET_SHORT: Record<string, string> = {
+  equity: "Azioni", long_tsy: "Tsy lunghi", int_tsy: "Tsy interm.", tips: "TIPS",
+  gold: "Oro", commodities: "Materie p.", cash: "Liquidità",
+};
+
+// Preferences heat map: −1 red … +1 green
+function Prefs({ prefs, quadranti }: { prefs: Record<string, Record<string, number>>; quadranti: any }) {
+  const assets = Object.keys(ASSET_SHORT);
+  const bg = (v: number) => v >= 0 ? `rgba(61,220,151,${Math.min(1, Math.abs(v)) * 0.55})` : `rgba(255,93,115,${Math.min(1, Math.abs(v)) * 0.55})`;
+  return (
+    <table className="rq-table rq-heat">
+      <thead><tr><th>Regime</th>{assets.map((a) => <th key={a}>{ASSET_SHORT[a]}</th>)}</tr></thead>
+      <tbody>
+        {QS.filter((q) => prefs[q]).map((q) => (
+          <tr key={q}><td><i className="rq-dot" style={{ background: QCOLOR[q] }} />{quadranti[q].name}</td>
+            {assets.map((a) => <td key={a} style={{ background: bg(prefs[q][a] ?? 0) }}>{itNum(prefs[q][a] ?? 0, 2)}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function Calibration({ t, tilt, quadranti }: { t: any; tilt: any; quadranti: any }) {
+  const sig = t.significativita_test;
+  const rpT = t.risk_parity.test, chT = t.scelto_stats.test;
+  const significant = Math.abs(sig.t) >= 2;
+  return (
+    <section className="rq-card">
+      <h2>Taratura del tilt</h2>
+      <div className={`rq-verdict${significant ? " ok" : ""}`}>
+        <b>{significant ? "Il tilt aggiunge valore in modo distinguibile dal caso." : "Il tilt non ha ancora dimostrato un vantaggio reale."}</b>{" "}
+        Scelto guardando solo il periodo {t.periodi.taratura}: {t.scelto.tipo === "imparato" ? "preferenze imparate dai mesi precedenti" : "preferenze teoriche"}, probabilità medie su {t.scelto.media_mesi} mesi, forza {itNum(t.scelto.forza, 2)}.
+        Nel periodo mai visto ({t.periodi.verifica}) Sharpe {itNum(chT.sharpe, 2)} contro {itNum(rpT.sharpe, 2)} del risk parity puro, rendimento annuo {pct(chT.cagr, 1)} contro {pct(rpT.cagr, 1)},
+        perdita massima {pct(chT.max_drawdown, 1)} contro {pct(rpT.max_drawdown, 1)}. Statistica t {itNum(sig.t, 1)} (serve circa 2): {significant ? "" : "la differenza può essere rumore."}
+      </div>
+      <div className="rq-grid two">
+        <div>
+          <h3>Preferenze in uso ({tilt.modo === "imparato" ? "imparate dai dati, solo dal passato" : "teoriche"})</h3>
+          <Prefs prefs={tilt.preferenze} quadranti={quadranti} />
+        </div>
+        <div>
+          <h3>Preferenze teoriche (Dalio)</h3>
+          <Prefs prefs={tilt.preferenze_teoriche} quadranti={quadranti} />
+        </div>
+      </div>
+      <h3>Candidati provati (ordinati sul periodo di taratura)</h3>
+      <table className="rq-table">
+        <thead><tr><th>Tipo</th><th>σ</th><th>Media mesi</th><th>Forza</th><th>Sharpe taratura</th><th>Sharpe verifica</th><th>Perdita max verifica</th></tr></thead>
+        <tbody>
+          {t.candidati.slice(0, 8).map((c: any, i: number) => (
+            <tr key={i} className={i === 0 ? "rq-best" : ""}><td>{c.forza === 0 ? "risk parity puro" : c.tipo}</td><td>{itNum(c.sigma, 1)}</td><td>{c.media_mesi}</td><td>{itNum(c.forza, 2)}</td>
+              <td>{itNum(c.sharpe_train, 2)}</td><td>{itNum(c.sharpe_test, 2)}</td><td className="down">{pct(c.dd_test, 1)}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="rq-note">Le preferenze imparate si stimano ogni mese solo dai mesi precedenti (con prudenza: poca storia, poco tilt). Oggi indicano soprattutto più azioni e oro e meno TIPS e liquidità quasi in ogni regime: è più una preferenza stabile che un vero tempismo sui regimi. Si rifà con <code>python -m app.cli rqe-taratura</code>.</p>
+    </section>
+  );
+}
+
 export default function RegimePage() {
   const [d, setD] = useState<any>(null);
   const [err, setErr] = useState(false);
@@ -165,8 +225,10 @@ export default function RegimePage() {
             ))}
           </tbody>
         </table>
-        <p className="rq-note">Pesi di base inversamente proporzionali alla volatilità degli ultimi 12 mesi; scostamento massimo ±{itNum(al.limiti.scostamento_massimo * 100)} punti. Allocazione modello a scopo di ricerca, non consulenza personalizzata.</p>
+        <p className="rq-note">Pesi di base inversamente proporzionali alla volatilità degli ultimi 12 mesi; tilt con probabilità medie su {al.tilt.media_mesi} mesi e preferenze {al.tilt.modo === "imparato" ? "imparate dai dati (vedi Taratura)" : "teoriche"}; scostamento massimo ±{itNum(al.limiti.scostamento_massimo * 100)} punti. Allocazione modello a scopo di ricerca, non consulenza personalizzata.</p>
       </section>
+
+      {d.taratura && <Calibration t={d.taratura} tilt={al.tilt} quadranti={d.quadranti} />}
 
       <section className="rq-card">
         <h2>Backtest dal {bt.statistiche.rp.dal.slice(0, 4)}</h2>

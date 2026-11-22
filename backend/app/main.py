@@ -181,7 +181,11 @@ async def jarvis_ws(ws: WebSocket) -> None:
 @app.get("/rqe")
 def rqe_snapshot() -> dict:
     """Dalio regime with probabilities, All Weather allocation with tilt, backtest, alerts."""
+    import json as _json
+
     from app.rqe import service as rqe
 
+    if rqe.OUT.exists():  # written daily by the job: instant
+        return _json.loads(rqe.OUT.read_text(encoding="utf-8"))
     with session_scope() as s:
         return rqe.snapshot(s)

@@ -85,6 +85,11 @@ TILTS: dict[str, dict[str, float]] = {
           "commodities": -1.0, "cash": 0.5},
 }
 TILT_STRENGTH = 0.5  # weight × (1 + strength × expected preference)
+# Chosen by the calibration (rqe/calibrate.py, train 2000-2012, judged on 2013+):
+# "imparato" = preferences learned walk-forward from earlier months only; "teorico" = TILTS.
+# Probabilities averaged over SMOOTH_MONTHS months to limit flip-flops.
+TILT_MODE = "imparato"
+SMOOTH_MONTHS = 3
 MAX_DEVIATION = 0.10  # each tilted weight stays within ±10 points of the base weight
 COST_BPS = 10  # transaction cost per unit of turnover, in basis points
 

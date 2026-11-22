@@ -131,3 +131,56 @@ def test_backtest_uses_only_past_information():
     assert out["returns"].loc[t, "bench"] == pytest.approx(0.6 * r.loc[t, "equity"] + 0.4 * r.loc[t, "int_tsy"])
     assert set(out["stats"]) == set(backtest.STRATEGIES)
     assert math.isfinite(out["stats"]["rp"]["volatilita"])
+
+
+# ---- calibration --------------------------------------------------------------------------
+def test_smoothing_is_trailing_only():
+    from app.rqe import calibrate
+
+    idx = pd.date_range("2020-01-31", periods=4, freq="ME")
+    hist = pd.DataFrame({"crescita": [1.0, 1.0, 1.0, -9.0], "inflazione": [0.0] * 4}, index=idx)
+    p = calibrate.probs_from_scores(hist, sigma=0.6, smooth=3)
+    # A shock in the last month cannot change earlier months
+    assert p.iloc[2]["A"] == pytest.approx(calibrate.probs_from_scores(hist.iloc[:3], 0.6, 3).iloc[2]["A"])
+    assert p[list("ABCD")].sum(axis=1).round(9).eq(1).all()
+
+
+def test_learned_preferences_ignore_the_future():
+    from app.rqe import calibrate
+
+    r = monthly_returns({a: 0.03 for a in C.RISKY}, n=90, seed=3)
+    probs = pd.DataFrame({"A": .7, "B": .1, "C": .1, "D": .1}, index=r.index)
+    t = r.index[75]
+    before = calibrate.learned_preferences(r, probs, t)
+    r2 = r.copy()
+    r2.loc[r.index[76]:, "equity"] = 0.5  # absurd future returns
+    after = calibrate.learned_preferences(r2, probs, t)
+    assert before == after
+    assert all(-1 <= v <= 1 for q in before for v in before[q].values())
+
+
+def test_learned_tilt_needs_five_years_of_history():
+    from app.rqe import calibrate
+
+    r = monthly_returns({a: 0.03 for a in C.RISKY}, n=40, seed=4)
+    probs = pd.DataFrame({q: .25 for q in "ABCD"}, index=r.index)
+    assert calibrate.learned_preferences(r, probs, r.index[-1]) is None
+
+
+def test_significance_t_statistic():
+    from app.rqe import calibrate
+
+    idx = pd.date_range("2013-01-31", periods=120, freq="ME")
+    rng = np.random.default_rng(0)
+    base = pd.Series(rng.normal(0.005, 0.02, 120), index=idx)
+    same = calibrate.significance(base, base)
+    assert same["t"] == 0.0
+    better = calibrate.significance(base + 0.002 + rng.normal(0, 0.001, 120), base)
+    assert better["t"] > 2 and better["errore_sharpe"] == pytest.approx(round(1 / math.sqrt(10), 2))
+
+
+def test_tilt_with_custom_preferences():
+    base = {"equity": .5, "long_tsy": .5}
+    prefs = {q: {"equity": 1.0, "long_tsy": -1.0, "cash": 0.0} for q in "ABCD"}
+    w = allocation.tilt(base, {"A": 1, "B": 0, "C": 0, "D": 0}, tilts=prefs, max_dev=0.1)
+    assert w["equity"] == pytest.approx(0.6) and w["long_tsy"] == pytest.approx(0.4)

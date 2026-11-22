@@ -145,6 +145,7 @@ def main() -> None:
     show.add_argument("id")
     sub.add_parser("track-record", help="Hit rates and Brier score")
     sub.add_parser("rqe", help="Regime & Quality Engine: write frontend/public/rqe/rqe.json")
+    sub.add_parser("rqe-taratura", help="Calibrate the regime tilt (train 2000-2012, test 2013+)")
     sub.add_parser("cabina", help="Write the cockpit's macro board (frontend/public/cabina)")
     args = p.parse_args()
 
@@ -229,6 +230,15 @@ def main() -> None:
             print(f"  {k:<8} CAGR {v['cagr']:.1%}  vol {v['volatilita']:.1%}  "
                   f"Sharpe {v['sharpe']}  max DD {v['max_drawdown']:.1%}")
         print(f"written {path}")
+    elif args.cmd == "rqe-taratura":
+        from app.rqe import service as rqe
+
+        with session_scope() as s:
+            sm = rqe.calibrate_and_save(s)
+        print("scelto sul periodo di taratura:", sm["scelto"])
+        print("risk parity  :", sm["risk_parity"]["test"])
+        print("con il tilt  :", sm["scelto_stats"]["test"])
+        print("significatività (verifica):", sm["significativita_test"])
     elif args.cmd == "track-record":
         with session_scope() as s:
             print(json.dumps(track_record(s), indent=1, ensure_ascii=False))

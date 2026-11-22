@@ -29,17 +29,23 @@ def risk_parity(returns: pd.DataFrame, months: int = C.VOL_MONTHS,
     return {a: inv[a] / tot for a in inv}
 
 
-def expected_preference(probs: dict[str, float], asset: str) -> float:
-    return sum(p * C.TILTS[q].get(asset, 0.0) for q, p in probs.items())
+def expected_preference(probs: dict[str, float], asset: str,
+                        tilts: dict[str, dict[str, float]] | None = None) -> float:
+    tilts = tilts or C.TILTS
+    return sum(p * tilts[q].get(asset, 0.0) for q, p in probs.items())
 
 
 def tilt(base: dict[str, float], probs: dict[str, float],
-         strength: float = C.TILT_STRENGTH, max_dev: float = C.MAX_DEVIATION) -> dict[str, float]:
-    """Tilted weights (sum 1, each within ±max_dev of base; cash base is 0)."""
+         strength: float = C.TILT_STRENGTH, max_dev: float = C.MAX_DEVIATION,
+         tilts: dict[str, dict[str, float]] | None = None) -> dict[str, float]:
+    """Tilted weights (sum 1, each within ±max_dev of base; cash base is 0).
+
+    ``tilts``: preferences per quadrant and asset (default: the theoretical ones).
+    """
     if not base:
         return {}
-    cash = max(0.0, min(max_dev, max_dev * expected_preference(probs, "cash")))
-    raw = {a: w * max(0.0, 1 + strength * expected_preference(probs, a))
+    cash = max(0.0, min(max_dev, max_dev * expected_preference(probs, "cash", tilts)))
+    raw = {a: w * max(0.0, 1 + strength * expected_preference(probs, a, tilts))
            for a, w in base.items()}
     lo = {a: max(0.0, base[a] - max_dev) for a in base}
     hi = {a: base[a] + max_dev for a in base}
@@ -65,12 +71,13 @@ def tilt(base: dict[str, float], probs: dict[str, float],
     return {a: v / tot for a, v in out.items()}
 
 
-def explain(base: dict[str, float], tilted: dict[str, float], probs: dict[str, float]) -> list:
+def explain(base: dict[str, float], tilted: dict[str, float], probs: dict[str, float],
+            tilts: dict[str, dict[str, float]] | None = None) -> list:
     """One line per asset: base, tilted, change and why."""
     rows = []
     for a in C.ASSETS:
         b, t = base.get(a, 0.0), tilted.get(a, 0.0)
-        pref = expected_preference(probs, a)
+        pref = expected_preference(probs, a, tilts)
         if abs(t - b) < 0.005:
             why = "Peso di base: il regime atteso non lo favorisce né lo penalizza."
         elif t > b:
