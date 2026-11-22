@@ -19,7 +19,7 @@ from typing import Literal
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app import catalog
+from app import cabina_guide, catalog
 from app.analysis.indicators import change_over
 from app.jarvis import tools
 from app.store import load_frame
@@ -100,6 +100,15 @@ def apply_transform(s: pd.Series, t: Transform) -> pd.Series:
 Rule = Callable[[pd.Series, float], tuple[State, str]]
 
 
+def _it(x: float) -> str:
+    """Signed number with one decimal, Italian style: +2,9."""
+    return f"{x:+.1f}".replace(".", ",")
+
+
+def _it2(x: float) -> str:
+    return f"{x:.2f}".replace(".", ",")
+
+
 def _chg(s: pd.Series, months: int, kind: Literal["diff", "pct"]) -> float | None:
     c = change_over(s, months, kind).dropna()
     return None if c.empty else float(c.iloc[-1])
@@ -160,14 +169,14 @@ def r_dollar(s, v):
     if c is None:
         return "neutro", ""
     if c > 3:
-        return "rosso", (f"Dollaro forte ({c:+.1f}% in 3 mesi): vento contrario per oro "
+        return "rosso", (f"Dollaro forte ({_it(c)}% in 3 mesi): vento contrario per oro "
                          "e materie prime.")
     if c > 1:
-        return "giallo", f"Dollaro in rialzo ({c:+.1f}% in 3 mesi)."
+        return "giallo", f"Dollaro in rialzo ({_it(c)}% in 3 mesi)."
     if c < -1:
-        return "verde", (f"Dollaro in calo ({c:+.1f}% in 3 mesi): vento favorevole per oro "
+        return "verde", (f"Dollaro in calo ({_it(c)}% in 3 mesi): vento favorevole per oro "
                          "e materie prime.")
-    return "neutro", f"Dollaro stabile ({c:+.1f}% in 3 mesi)."
+    return "neutro", f"Dollaro stabile ({_it(c)}% in 3 mesi)."
 
 
 def r_vix(s, v):
@@ -191,10 +200,10 @@ def r_liquidity(s, v):
     if c is None:
         return "neutro", ""
     if c > 1:
-        return "verde", f"Liquidità in aumento ({c:+.1f}% in 3 mesi)."
+        return "verde", f"Liquidità in aumento ({_it(c)}% in 3 mesi)."
     if c < -3:
-        return "rosso", f"Liquidità in calo ({c:+.1f}% in 3 mesi)."
-    return "giallo", f"Liquidità ferma ({c:+.1f}% in 3 mesi)."
+        return "rosso", f"Liquidità in calo ({_it(c)}% in 3 mesi)."
+    return "giallo", f"Liquidità ferma ({_it(c)}% in 3 mesi)."
 
 
 def r_m2(s, v):
@@ -211,9 +220,9 @@ def r_sahm(s, v):
         return "neutro", ""
     rise = float(m3.iloc[-1] - m3.iloc[-13:-1].min())
     if rise >= 0.5:
-        return "rosso", f"Regola di Sahm scattata (+{rise:.2f}): segnale di recessione."
+        return "rosso", f"Regola di Sahm scattata (+{_it2(rise)}): segnale di recessione."
     if rise >= 0.3:
-        return "giallo", f"Disoccupazione in salita (+{rise:.2f} dal minimo dell'ultimo anno)."
+        return "giallo", f"Disoccupazione in salita (+{_it2(rise)} dal minimo dell'ultimo anno)."
     return "verde", "Mercato del lavoro stabile."
 
 
@@ -307,6 +316,8 @@ def build(session: Session, today: date | None = None) -> dict:
         "generato": datetime.now().isoformat(timespec="minutes"),
         "sezioni": SECTIONS,
         "metriche": tiles,
+        "spiegazioni": cabina_guide.explain(SECTIONS, tiles),
+        "guida_semafori": cabina_guide.TRAFFIC_LIGHTS,
         "regime": {k: reg.get(k) for k in ("as_of", "regime", "descrizione", "assi")},
         "convergenza": {"as_of": conv.get("as_of"), "verdetto": conv.get("verdetto"),
                         "scenari": [{k: x.get(k) for k in (

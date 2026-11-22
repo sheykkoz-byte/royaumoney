@@ -11,10 +11,45 @@ export type Tile = {
   changes: Record<string, number | null>; state: "verde" | "giallo" | "rosso" | "neutro";
   reading: string; spark: [string, number][]; errore?: string;
 };
+export type Spiegazione = {
+  cosa_misura: string; riquadri: { label: string; significato: string }[];
+  oggi: string[]; semafori: string;
+};
 export type Macro = {
   generato: string; sezioni: string[]; metriche: Tile[];
+  spiegazioni?: Record<string, Spiegazione>; guida_semafori?: string;
   regime: any; convergenza: any; previsioni: any[];
 };
+
+// "Cosa vuol dire": under each section, today's reading first, then what it measures and
+// what each tile means. Text comes from the backend (app/cabina_guide.py).
+function Explain({ e }: { e: Spiegazione }) {
+  return (
+    <details className="macro-explain" open>
+      <summary>Cosa vuol dire</summary>
+      {e.oggi.length > 0 && (
+        <div className="mx-block">
+          <h4>Oggi{e.semafori ? <span> · {e.semafori}</span> : null}</h4>
+          <ul className="mx-today">{e.oggi.map((f, i) => <li key={i}>{f}</li>)}</ul>
+        </div>
+      )}
+      <div className="mx-block">
+        <h4>Cosa misura</h4>
+        <p>{e.cosa_misura}</p>
+      </div>
+      {e.riquadri.length > 0 && (
+        <div className="mx-block">
+          <h4>I riquadri</h4>
+          <dl className="mx-tiles">
+            {e.riquadri.map((r) => (
+              <div key={r.label}><dt>{r.label}</dt><dd>{r.significato}</dd></div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </details>
+  );
+}
 
 function Spark({ pts, state }: { pts: [string, number][]; state: string }) {
   const vals = pts.map((p) => p[1]).filter((v) => v !== null);
@@ -77,12 +112,19 @@ export default function MacroBoard({ data, onOpen }: { data: Macro | null; onOpe
       </div>
       <div className="macro-scroll">
         {!data && <p className="wl-hint">Carico i dati…</p>}
+        {data?.guida_semafori && (
+          <details className="macro-explain legend">
+            <summary>Come leggere i semafori</summary>
+            <p>{data.guida_semafori}</p>
+          </details>
+        )}
         {data?.sezioni.map((sec) => (
           <div key={sec} className="macro-sec">
             <h3>{sec}</h3>
             <div className="macro-grid">
               {data.metriche.filter((t) => t.section === sec).map((t) => <MacroTile key={t.id} t={t} onOpen={onOpen} />)}
             </div>
+            {data.spiegazioni?.[sec] && <Explain e={data.spiegazioni[sec]} />}
           </div>
         ))}
       </div>
