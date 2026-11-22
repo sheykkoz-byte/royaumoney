@@ -29,6 +29,7 @@ Transform = Literal["level", "yoy", "mavg3_diff", "avg4"]
 
 OUT = Path(__file__).resolve().parents[2] / "frontend" / "public" / "cabina" / "macro.json"
 SPARK_POINTS = 120
+HISTORY_POINTS = 160
 
 
 @dataclass(frozen=True)
@@ -344,8 +345,8 @@ def _num(x: float | None, nd: int = 4) -> float | None:
     return None if x is None or not math.isfinite(x) else round(float(x), nd)
 
 
-def sparkline(s: pd.Series, n: int = SPARK_POINTS) -> list[list]:
-    year = s[s.index >= s.index[-1] - pd.DateOffset(years=1)]
+def sparkline(s: pd.Series, n: int = SPARK_POINTS, years: int = 1) -> list[list]:
+    year = s[s.index >= s.index[-1] - pd.DateOffset(years=years)]
     if len(year) > n:
         step = len(year) / n
         idx = sorted({int(i * step) for i in range(n)} | {len(year) - 1})
@@ -381,13 +382,15 @@ def tile(m: Metric, s: pd.Series) -> dict:
         "value": _num(v), "date": s.index[-1].date().isoformat(), "changes": changes,
         "state": state, "reading": reading, "spark": sparkline(s),
         "scala": sc,
+        # longer history for the explanation window's 1/3/5-year switch
+        "storico": {"3a": sparkline(s, HISTORY_POINTS, 3), "5a": sparkline(s, HISTORY_POINTS, 5)},
         "source": sdef.source if hasattr(sdef, "source") else None,
     }
 
 
 def build(session: Session, today: date | None = None) -> dict:
     today = today or date.today()
-    start = today - timedelta(days=3 * 366)
+    start = today - timedelta(days=6 * 366)  # 5 years shown + 1 for year-on-year transforms
     tiles = []
     for m in METRICS:
         df = load_frame(session, m.id, start=start)

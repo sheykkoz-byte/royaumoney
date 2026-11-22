@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { itNum } from "@/lib/jarvis";
+import { playOpen, prefs } from "@/lib/sfx";
 import type { Spiegazione, Tile } from "./MacroBoard";
 
 const STATE_LABEL: Record<string, string> = {
@@ -16,8 +17,57 @@ const STATE_LABEL: Record<string, string> = {
 // Indicators where a rise is bad news: their "up" is coloured red
 const RISE_IS_BAD = new Set(["VIX", "BAMLH0A0HYM2", "ICSA", "UNRATE", "CPIAUCSL", "PCEPILFE"]);
 
-const reduced = () =>
-  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// "Animazioni ridotte" (button in the window, or the system setting) turns motion off
+const reduced = () => typeof window !== "undefined" && !prefs.fullMotion();
+
+const PERIODS = [["1a", "1 anno"], ["3a", "3 anni"], ["5a", "5 anni"]] as const;
+type Period = (typeof PERIODS)[number][0];
+
+// A short burst of particles in the traffic-light colour when the window opens
+function Burst({ color }: { color: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c || reduced()) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = c.clientWidth, h = c.clientHeight;
+    c.width = w * dpr; c.height = h * dpr;
+    const g = c.getContext("2d");
+    if (!g) return;
+    g.scale(dpr, dpr);
+    const parts = Array.from({ length: 90 }, () => {
+      const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 7;
+      return { vx: Math.cos(a) * v * 60, vy: Math.sin(a) * v * 60, r: 0.8 + Math.random() * 2.2,
+               span: 700 + Math.random() * 500 };
+    });
+    // Time-based (not frame-based): the burst lasts about a second on any machine
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = (now - t0) / 1000;
+      g.clearRect(0, 0, w, h);
+      let alive = false;
+      const travel = (1 - Math.exp(-3 * t)) / 3; // decelerating distance factor
+      for (const p of parts) {
+        const life = 1 - (now - t0) / p.span;
+        if (life <= 0) continue;
+        alive = true;
+        const x = w / 2 + p.vx * travel, y = h / 2 + p.vy * travel;
+        g.globalAlpha = life;
+        g.fillStyle = color;
+        g.shadowColor = color; g.shadowBlur = 8;
+        g.beginPath(); g.arc(x, y, p.r, 0, Math.PI * 2); g.fill();
+      }
+      if (alive) raf = requestAnimationFrame(tick);
+      else g.clearRect(0, 0, w, h);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [color]);
+  return <canvas ref={ref} className="tm-burst" aria-hidden />;
+}
+
+const COLORS: Record<string, string> = { verde: "#3ddc97", giallo: "#ffc35a", rosso: "#ff5d73", neutro: "#8b7cff" };
 
 function useCountUp(target: number, ms = 1100) {
   const [v, setV] = useState(reduced() ? target : target * 0.82);
@@ -38,8 +88,8 @@ function useCountUp(target: number, ms = 1100) {
 
 const W = 640, H = 210, PAD = { l: 6, r: 6, t: 16, b: 22 };
 
-function BigChart({ t }: { t: Tile }) {
-  const pts = t.spark.filter((p) => p[1] !== null);
+function BigChart({ t, points, period }: { t: Tile; points: [string, number][]; period: string }) {
+  const pts = points.filter((p) => p[1] !== null);
   const [hover, setHover] = useState<number | null>(null);
   const g = useMemo(() => {
     if (pts.length < 2) return null;
@@ -64,7 +114,7 @@ function BigChart({ t }: { t: Tile }) {
   return (
     <div className="tm-chart">
       <svg viewBox={`0 0 ${W} ${H}`} onMouseMove={onMove} onMouseLeave={() => setHover(null)}
-        role="img" aria-label={`${t.label}: ultimo anno`}>
+        role="img" aria-label={`${t.label}: ${period}`}>
         <defs>
           <linearGradient id="tm-area" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0" stopColor="var(--tm-color)" stopOpacity=".32" />
@@ -94,7 +144,7 @@ function BigChart({ t }: { t: Tile }) {
       <div className="tm-tip" aria-live="polite">
         {hi !== null
           ? <><b>{itNum(pts[hi][1], t.decimals)}</b> {t.unit} · {fmt(pts[hi][0])}</>
-          : <>Passa sul grafico per leggere ogni punto dell&apos;ultimo anno</>}
+          : <>Passa sul grafico per leggere ogni punto</>}
       </div>
     </div>
   );
@@ -138,6 +188,11 @@ export default function TileModal({
 }) {
   const t = tiles[index];
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [period, setPeriod] = useState<Period>("1a");
+  const [sound, setSound] = useState(prefs.sound());
+  const [full, setFull] = useState(prefs.fullMotion());
+  const points = period === "1a" ? t.spark : (t.storico?.[period] ?? t.spark);
+  useEffect(() => { playOpen(t.state); }, [t.id, t.state]);
   const value = useCountUp(t.value ?? 0);
   const meaning = guide?.riquadri.find((r) => r.label === t.label)?.significato;
   const summary = guide?.oggi.filter((f) => f.startsWith("In sintesi")) ?? [];
@@ -173,9 +228,10 @@ export default function TileModal({
 
   return createPortal(
     <div className="tm-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`tm-panel st-${t.state}`} role="dialog" aria-modal="true" aria-labelledby="tm-title"
-        style={from as React.CSSProperties} key={t.id}>
+      <div className={`tm-panel st-${t.state}${full ? "" : " tm-calm"}`} role="dialog" aria-modal="true"
+        aria-labelledby="tm-title" style={from as React.CSSProperties} key={t.id}>
         <div className="tm-aura" aria-hidden />
+        {full && <Burst color={COLORS[t.state] ?? COLORS.neutro} />}
         <header className="tm-head">
           <span className={`tm-light l-${t.state}`} aria-hidden><i /></span>
           <div className="tm-titles">
@@ -192,7 +248,12 @@ export default function TileModal({
           <div className="tm-date">ultimo dato {t.date.split("-").reverse().join("/")}</div>
         </div>
 
-        <BigChart t={t} />
+        <div className="tm-periods" role="group" aria-label="Periodo del grafico">
+          {PERIODS.map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={period === k} onClick={() => setPeriod(k)}>{label}</button>
+          ))}
+        </div>
+        <BigChart key={`${t.id}-${period}`} t={t} points={points} period={period} />
         <Gauge t={t} />
 
         <div className="tm-text">
@@ -220,6 +281,11 @@ export default function TileModal({
         <footer className="tm-foot">
           <button onClick={() => onIndex((index - 1 + tiles.length) % tiles.length)} aria-label="Riquadro precedente">←</button>
           <button onClick={() => onIndex((index + 1) % tiles.length)} aria-label="Riquadro successivo">→</button>
+          <button type="button" aria-pressed={sound} title={sound ? "Spegni i suoni" : "Accendi i suoni"}
+            onClick={() => { prefs.setSound(!sound); setSound(!sound); }}>{sound ? "🔊 Suoni" : "🔇 Suoni"}</button>
+          <button type="button" aria-pressed={full}
+            onClick={() => { prefs.setFullMotion(!full); setFull(!full); }}>
+            {full ? "Animazioni piene" : "Animazioni ridotte"}</button>
           <span className="tm-hint">← → per scorrere · Esc per chiudere</span>
           {t.tv && <button className="tm-primary" onClick={() => { onOpenChart(t.tv!); onClose(); }}>Apri sul grafico principale</button>}
         </footer>

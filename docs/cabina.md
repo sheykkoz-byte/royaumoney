@@ -77,9 +77,11 @@ Il sito si pubblica su Vercel (cartella `frontend`). Con la variabile `CABINA_PA
 
 Un clic su un riquadro della plancia apre una finestra (`frontend/src/components/cabina/TileModal.tsx`), che si apre dal riquadro stesso con un'animazione. Contiene:
 - **semaforo e valore** (il numero "conta" fino al valore di oggi) con le variazioni a 1 giorno, 1 mese e 1 anno; per gli indicatori di tensione (VIX, spread, sussidi, disoccupazione, inflazione) la salita è in rosso;
-- il **grafico dell'ultimo anno**, che si disegna da solo; passandoci sopra si leggono data e valore di ogni punto;
+- il **grafico** a **1, 3 o 5 anni** (selettore sopra il grafico; lo storico lungo è in `storico` nel JSON della plancia), che si disegna da solo; passandoci sopra si leggono data e valore di ogni punto;
 - la **scala "Dove siamo"**: le zone verde/giallo/rosso con le stesse soglie del semaforo (`scale()` in `backend/app/cabina.py`, un test verifica che zona e colore coincidano) e un indicatore che scivola sul valore di oggi;
 - **Oggi** (la lettura del semaforo e la sintesi della sezione), **Cosa vuol dire** (il significato dell'indicatore) e **Perché conta** (la sezione), da `backend/app/cabina_guide.py` (regole fisse, senza AI);
 - ← → per passare agli altri riquadri della sezione, Esc per chiudere, e il pulsante **Apri sul grafico principale** (prima era l'azione del clic).
+
+All'apertura, un breve **suono** sintetizzato (Web Audio, nessun file: un soffio e due note, più chiare col verde e più gravi col rosso, `frontend/src/lib/sfx.ts`) e una **esplosione di particelle** del colore del semaforo. Nella finestra due interruttori, ricordati dal browser: **Suoni** acceso/spento e **Animazioni piene/ridotte** (con "ridotte" tutto compare subito, senza movimento).
 
 In cima alla plancia resta "Come leggere i semafori". I testi si aggiornano con la plancia (`python -m app.cli cabina`). Con "riduci movimento" attivo nel sistema le animazioni si spengono.

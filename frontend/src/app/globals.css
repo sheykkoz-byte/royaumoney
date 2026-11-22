@@ -417,6 +417,17 @@ button.mt:hover { border-color: rgba(139,124,255,.55); background: rgba(139,124,
   .tm-badge, .tm-hint { display: none; }
   .tm-date { margin-left: 0; }
 }
+.tm-burst { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.tm-periods { position: relative; display: inline-flex; gap: 4px; margin-top: 14px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .03); }
+.tm-periods button { font: 500 12px "JetBrains Mono", monospace; color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 5px 12px; cursor: pointer; transition: background .25s, color .25s; }
+.tm-periods button[aria-pressed="true"] { color: var(--bg); background: var(--tm-color); box-shadow: 0 0 14px color-mix(in srgb, var(--tm-color) 50%, transparent); }
+.tm-periods button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.tm-foot button[aria-pressed="false"] { color: var(--muted); }
+/* "Animazioni ridotte": everything appears at once, nothing loops */
+.tm-calm, .tm-calm .tm-area, .tm-calm .tm-dot, .tm-calm .tm-card { animation: none !important; }
+.tm-calm .tm-line { animation: none !important; stroke-dashoffset: 0; }
+.tm-calm .tm-aura, .tm-calm .tm-ping, .tm-calm .tm-light i { animation: none !important; }
+.tm-calm .tm-marker { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .tm-overlay, .tm-panel, .tm-area, .tm-dot, .tm-card { animation: none; }
   .tm-line { animation: none; stroke-dashoffset: 0; }

@@ -13,6 +13,7 @@ export type Tile = {
   change_kind: "diff" | "pct"; tv: string | null; value: number; date: string;
   changes: Record<string, number | null>; state: "verde" | "giallo" | "rosso" | "neutro";
   reading: string; spark: [string, number][]; errore?: string;
+  storico?: { "3a": [string, number][]; "5a": [string, number][] };
   scala?: {
     misura: string; unita: string; valore: number | null; min: number; max: number;
     zone: { da: number | null; a: number | null; stato: string }[]; nota?: string;
