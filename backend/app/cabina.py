@@ -60,7 +60,7 @@ METRICS: list[Metric] = [
            rule="breakeven"),
     Metric("DTWEXBGS", "Dollaro e rischio", "Dollaro (indice ampio)", "", 1, change="pct",
            tv="CAPITALCOM:DXY", rule="dollar"),
-    Metric("VIX", "Dollaro e rischio", "VIX", "", 1, change="pct", tv="CAPITALCOM:VIX", rule="vix"),
+    Metric("VIX", "Dollaro e rischio", "VIX", "", 1, change="pct", tv="FRED:VIXCLS", rule="vix"),
     Metric("BAMLH0A0HYM2", "Dollaro e rischio", "Spread high yield", "punti %", 2,
            tv="FRED:BAMLH0A0HYM2", rule="hy"),
     Metric("DEXUSEU", "Dollaro e rischio", "EUR/USD", "", 4, change="pct", tv="FX:EURUSD"),

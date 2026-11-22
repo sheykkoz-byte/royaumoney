@@ -34,7 +34,8 @@ Al loro posto ci sono:
 | Mercato | Simbolo usato | Nota |
 |---|---|---|
 | DXY | `CAPITALCOM:DXY` | CFD |
-| VIX | `CAPITALCOM:VIX` | **CFD sul future**: può essere molto diverso dall'indice VIX (il 22/11: 26,4 contro 35,9) |
+| VIX ufficiale | `FRED:VIXCLS` | indice CBOE, chiusura giornaliera: è lo stesso dato della plancia e del grafico di controllo |
+| VIX in tempo reale | `CAPITALCOM:VIX` | **CFD sul future**: può essere molto diverso dall'indice (il 22/11: 26,4 contro 35,9) |
 | Rendimenti USA, curve, reale, Fed funds | `FRED:DGS2`, `FRED:DGS10`, `FRED:T10Y2Y`… | dati ufficiali, chiusura giornaliera |
 | Bund 10 anni | `TRADEWEB:DE10Y` | |
 | BTP, Gilt, JGB, spread BTP−Bund | `FRED:IRLTLT01…` | mensili |

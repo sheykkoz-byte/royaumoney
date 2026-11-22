@@ -43,7 +43,9 @@ export const CATEGORIES: Category[] = [
     { s: "CAPITALCOM:HK50", n: "Hang Seng" }, { s: "CSEMA:MASI", n: "MASI (Casablanca)" },
   ] },
   { id: "dollar-vol", name: "Dollaro e volatilità", items: [
-    { s: "CAPITALCOM:DXY", n: "Indice del dollaro (DXY, CFD)" }, { s: "CAPITALCOM:VIX", n: "VIX (CFD sul future)" },
+    { s: "CAPITALCOM:DXY", n: "Indice del dollaro (DXY, CFD)" },
+    { s: "FRED:VIXCLS", n: "VIX ufficiale (chiusura giornaliera)" },
+    { s: "CAPITALCOM:VIX", n: "VIX CFD sul future (tempo reale)" },
   ] },
   // Yields: TradingView's own (TVC) are not allowed in embedded charts; FRED's official
   // series are (daily close for the US, monthly for Italy, UK and Japan).
@@ -86,7 +88,7 @@ export const DEFAULT_FAVORITES = [
   "CAPITALCOM:DXY", "CAPITALCOM:VIX", "TVC:USOIL", "BITSTAMP:BTCUSD",
 ];
 
-export const DEFAULT_MINI = ["CAPITALCOM:DXY", "FRED:DGS10", "CAPITALCOM:VIX", "FRED:T10Y2Y"];
+export const DEFAULT_MINI = ["CAPITALCOM:DXY", "FRED:DGS10", "FRED:VIXCLS", "FRED:T10Y2Y"];
 
 const BY_SYMBOL = new Map(CATEGORIES.flatMap((c) => c.items.map((i) => [i.s, i.n] as const)));
 
