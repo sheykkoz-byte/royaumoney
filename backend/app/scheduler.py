@@ -26,6 +26,13 @@ def _job() -> None:
                          "; ".join(r.get("new_events", [])))
     except Exception:
         log.exception("Prediction verification failed")
+    try:
+        from app.rqe import service as rqe
+
+        with session_scope() as s:
+            rqe.export(s)
+    except Exception:
+        log.exception("Regime & Quality Engine export failed")
 
 
 def start_scheduler() -> BackgroundScheduler:

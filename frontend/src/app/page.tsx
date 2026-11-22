@@ -103,7 +103,7 @@ export default function Cabina() {
         <MacroBoard data={macro} onOpen={setSymbol} />
 
         <aside className="cab-panel jarvis-col">
-          <div className="cab-head"><span>Jarvis</span><Link href="/jarvis" className="cab-link">Parla con Jarvis →</Link></div>
+          <div className="cab-head"><span>Jarvis</span><span><Link href="/regime" className="cab-link">Regimi →</Link> · <Link href="/jarvis" className="cab-link">Parla con Jarvis →</Link></span></div>
           <div className="jc-orb"><Orb signals={signals} /></div>
           <div className="jc-scroll">
             {regime && <Card card={{ key: "r", kind: "regime", data: { regime }, born: 0 }} focus={false} />}

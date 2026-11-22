@@ -144,6 +144,7 @@ def main() -> None:
     show = pvs.add_parser("show", help="One prediction with its event log")
     show.add_argument("id")
     sub.add_parser("track-record", help="Hit rates and Brier score")
+    sub.add_parser("rqe", help="Regime & Quality Engine: write frontend/public/rqe/rqe.json")
     sub.add_parser("cabina", help="Write the cockpit's macro board (frontend/public/cabina)")
     args = p.parse_args()
 
@@ -215,6 +216,19 @@ def main() -> None:
                 if p is None:
                     raise SystemExit(f"{args.id} non trovata")
                 print_prediction(predictions.view(s, p))
+    elif args.cmd == "rqe":
+        from app.rqe import service as rqe
+
+        with session_scope() as s:
+            path = rqe.export(s)
+        snap = json.loads(path.read_text(encoding="utf-8"))
+        r = snap["regime"]
+        print(f"Regime: {r.get('nome')} · " + " ".join(
+            f"{q} {p:.0%}" for q, p in (r.get("probabilita") or {}).items()))
+        for k, v in snap["backtest"]["statistiche"].items():
+            print(f"  {k:<8} CAGR {v['cagr']:.1%}  vol {v['volatilita']:.1%}  "
+                  f"Sharpe {v['sharpe']}  max DD {v['max_drawdown']:.1%}")
+        print(f"written {path}")
     elif args.cmd == "track-record":
         with session_scope() as s:
             print(json.dumps(track_record(s), indent=1, ensure_ascii=False))

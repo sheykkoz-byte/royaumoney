@@ -12,7 +12,7 @@ from typing import Literal
 
 Category = Literal["liquidity", "macro", "market", "fx"]
 Source = Literal["fred", "yahoo", "derived"]
-Frequency = Literal["daily", "weekly", "monthly"]
+Frequency = Literal["daily", "weekly", "monthly", "quarterly"]
 
 
 @dataclass(frozen=True)
@@ -128,6 +128,21 @@ SERIES: list[SeriesDef] = [
          "daily", 14, 7),
     fred("DEXJPUS", "Cambio JPY per USD", "fx", "Japanese Yen to One U.S. Dollar",
          "JPY per USD", "daily", 14, 7),
+    # ---- Regime & Quality Engine (Dalio growth/inflation signals, asset proxies) ---------
+    fred("IPMAN", "Produzione manifatturiera", "macro", "Index 2017=100", "Indice 2017=100",
+         "monthly", 60, 16, revised=True,
+         notes="Stand-in for the ISM PMI, which is no longer on FRED (ISM licence)."),
+    fred("RRSFS", "Vendite al dettaglio reali", "macro", "Millions of 1982-84 CPI Adjusted Dollars",
+         "Miliardi di $ 1982-84", "monthly", 60, 16, scale=1e-3, revised=True),
+    fred("GDPNOW", "PIL USA, stima in tempo reale (GDPNow)", "macro",
+         "Percent Change at Annual Rate", "% annualizzato", "quarterly", 120, 0, revised=True,
+         notes="Atlanta Fed nowcast; quarterly, from 2011."),
+    fred("T5YIE", "Inflazione attesa 5 anni", "market", "Percent", "%", "daily", 5, 1),
+    fred("PPIACO", "Prezzi alla produzione, tutte le materie", "macro", "Index 1982=100",
+         "Indice 1982=100", "monthly", 60, 14, revised=True),
+    fred("DGS20", "Treasury 20 anni", "market", "Percent", "%", "daily", 5, 1),
+    fred("DFII10", "TIPS 10 anni (rendimento reale)", "market", "Percent", "%", "daily", 5, 1),
+    fred("DTB3", "T-bill 3 mesi", "market", "Percent", "%", "daily", 5, 1),
     # ---- Market prices (Yahoo, prototype) ----------------------------------------------
     yahoo("GOLD", "GC=F", "Oro (future)", "USD/oncia"),
     yahoo("COPPER", "HG=F", "Rame (future)", "USD/libbra"),

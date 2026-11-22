@@ -257,6 +257,9 @@ def data_notes(session: Session, has_fred_key: bool) -> list[str]:
 def run(session: Session, as_of: date | None = None, has_fred_key: bool = False,
         with_history: bool = True) -> dict:
     as_of_ts = pd.Timestamp(as_of or date.today())
-    frames = {sid: load_frame(session, sid, as_of=as_of_ts.date())
+    # "first": a past data point counts from its first publication (not from its latest
+    # revision), so the regime history does not lose revised series; values are those
+    # known on as_of.
+    frames = {sid: load_frame(session, sid, as_of=as_of_ts.date(), availability="first")
               for sid in required_series()}
     return analyze(frames, as_of_ts, data_notes(session, has_fred_key), with_history)

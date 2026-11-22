@@ -281,3 +281,12 @@ def test_config_references_are_valid():
         assert voices == {"macro", "market"}, f"{sc.id} needs both voices"
         for s in sc.signals:
             assert s.field in C.FIELD_LABELS
+
+
+def test_robust_scale_does_not_collapse_on_a_series_that_barely_moved():
+    """Unemployment 2003-2005: mostly unchanged months; a +0.7 move must not be ±7σ."""
+    rng = np.random.default_rng(5)
+    steps = rng.choice([0.0, 0.0, 0.0, 0.0, 0.1, -0.1, 0.2, -0.2], size=72)
+    steps[-1] = 0.7
+    s = monthly(steps)["value"]
+    assert 1.5 < rolling_z(s, 5, 3).iloc[-1] < 6

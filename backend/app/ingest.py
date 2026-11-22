@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 REVERIFY_AFTER = timedelta(days=7)
 # On a routine run, re-download this much history so late revisions are picked up.
-INCREMENTAL_LOOKBACK = {"daily": 60, "weekly": 180, "monthly": 3 * 365}
+INCREMENTAL_LOOKBACK = {"daily": 60, "weekly": 180, "monthly": 3 * 365, "quarterly": 3 * 365}
 
 
 def _now() -> datetime:

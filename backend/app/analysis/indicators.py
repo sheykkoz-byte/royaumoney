@@ -67,6 +67,10 @@ def change_over(s: pd.Series, months: int, kind: ChangeKind) -> pd.Series:
 # five years. 1.4826 × MAD equals the standard deviation for normally distributed data.
 ROBUST = True
 MAD_TO_STD = 1.4826
+# Floor for the robust scale, from the 10th-90th percentile range (also robust to a few
+# extremes): a series that barely moved for years (unemployment in 2003-2005, MAD ≈ 0)
+# would otherwise turn a normal move into ±7σ. 2.563 = width of that range in σ units.
+Q_RANGE_TO_STD = 2.563
 
 
 def _window_days(years: float) -> str:
@@ -92,11 +96,14 @@ def _robust_center_scale(s: pd.Series, years: float, demean: bool):
         center = win.median()
         mad = win.apply(lambda w: np.median(np.abs(w - np.median(w))), raw=True)
         fallback = win.std()
+        floor = (win.quantile(0.9) - win.quantile(0.1)) / Q_RANGE_TO_STD
     else:
         center = pd.Series(0.0, index=sample.index)
         mad = win.apply(lambda w: np.median(np.abs(w)), raw=True)
         fallback = np.sqrt((sample**2).rolling(_window_days(years), min_periods=5).mean())
+        floor = sample.abs().rolling(_window_days(years), min_periods=5).quantile(0.8) / 1.2816
     scale = (MAD_TO_STD * mad).where(mad > 0, fallback)
+    scale = np.maximum(scale, floor.fillna(0))
     if sample is s:
         return center, scale
     return _on_index(center, s.index), _on_index(scale, s.index)

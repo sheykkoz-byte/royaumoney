@@ -118,10 +118,15 @@ def load_frame(
     series_id: str,
     as_of: date | None = None,
     start: date | None = None,
+    availability: str = "latest",
 ) -> pd.DataFrame:
     """Values known on ``as_of`` (default: latest), one row per ref_date.
 
     Columns: value, published_at. Index: ref_date (Timestamp), sorted.
+    ``availability``: "latest" gives the publication date of the version returned;
+    "first" gives the date the ref_date was *first* published (its value is still the
+    latest version). Use "first" to know *when* a data point existed in a history; for
+    the *value* known at each past date use ``load_versions`` + ``as_known_on``.
     """
     q = select(Observation.ref_date, Observation.published_at, Observation.value).where(
         Observation.series_id == series_id
@@ -138,5 +143,30 @@ def load_frame(
         )
     df["ref_date"] = pd.to_datetime(df["ref_date"])
     df["published_at"] = pd.to_datetime(df["published_at"])
-    df = df.sort_values(["ref_date", "published_at"]).groupby("ref_date").last()
-    return df[["value", "published_at"]]
+    df = df.sort_values(["ref_date", "published_at"])
+    g = df.groupby("ref_date")
+    out = g.last()
+    if availability == "first":
+        out["published_at"] = g["published_at"].min()
+    return out[["value", "published_at"]]
+
+
+def load_versions(session: Session, series_id: str) -> pd.DataFrame:
+    """Every stored version of a series: columns ref_date, published_at, value (sorted)."""
+    q = select(Observation.ref_date, Observation.published_at, Observation.value).where(
+        Observation.series_id == series_id)
+    df = pd.DataFrame(session.execute(q).all(), columns=["ref_date", "published_at", "value"])
+    df["ref_date"] = pd.to_datetime(df["ref_date"])
+    df["published_at"] = pd.to_datetime(df["published_at"])
+    return df.sort_values(["ref_date", "published_at"]).reset_index(drop=True)
+
+
+def as_known_on(versions: pd.DataFrame, d) -> pd.DataFrame:
+    """The series exactly as it was known on date ``d`` (same shape as load_frame)."""
+    v = versions[versions["published_at"] <= pd.Timestamp(d)]
+    if v.empty:
+        return pd.DataFrame(
+            {"value": pd.Series(dtype=float), "published_at": pd.Series(dtype="datetime64[ns]")},
+            index=pd.DatetimeIndex([], name="ref_date"),
+        )
+    return v.groupby("ref_date").last()[["value", "published_at"]]

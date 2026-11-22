@@ -1,6 +1,6 @@
 # Serie FRED verificate
 
-Generato da `python -m app.cli verify` il 2026-11-21 (modalità: API FRED).
+Generato da `python -m app.cli verify` il 2026-11-22 (modalità: API FRED).
 
 | ID | Titolo su FRED | Unità su FRED | Frequenza | Salvata come | Fattore | Esito |
 |---|---|---|---|---|---|---|
@@ -28,3 +28,11 @@ Generato da `python -m app.cli verify` il 2026-11-21 (modalità: API FRED).
 | `DTWEXBGS` | Nominal Broad U.S. Dollar Index | Index Jan 2006=100 | Daily | Indice gen 2006=100 | ×1 | OK |
 | `DEXUSEU` | U.S. Dollars to Euro Spot Exchange Rate | U.S. Dollars to One Euro | Daily | USD per EUR | ×1 | OK |
 | `DEXJPUS` | Japanese Yen to U.S. Dollar Spot Exchange Rate | Japanese Yen to One U.S. Dollar | Daily | JPY per USD | ×1 | OK |
+| `IPMAN` | Industrial Production: Manufacturing (NAICS) | Index 2017=100 | Monthly | Indice 2017=100 | ×1 | OK |
+| `RRSFS` | Advance Real Retail and Food Services Sales | Millions of 1982-84 CPI Adjusted Dollars | Monthly | Miliardi di $ 1982-84 | ×0.001 | OK |
+| `GDPNOW` | GDPNow | Percent Change at Annual Rate | Quarterly | % annualizzato | ×1 | OK |
+| `T5YIE` | 5-Year Breakeven Inflation Rate | Percent | Daily | % | ×1 | OK |
+| `PPIACO` | Producer Price Index by Commodity: All Commodities | Index 1982=100 | Monthly | Indice 1982=100 | ×1 | OK |
+| `DGS20` | Market Yield on U.S. Treasury Securities at 20-Year Constant Maturity, Quoted on an Investment Basis | Percent | Daily | % | ×1 | OK |
+| `DFII10` | Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity, Quoted on an Investment Basis, Inflation-Indexed | Percent | Daily | % | ×1 | OK |
+| `DTB3` | 3-Month Treasury Bill Secondary Market Rate, Discount Basis | Percent | Daily | % | ×1 | OK |

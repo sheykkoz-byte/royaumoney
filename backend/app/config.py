@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'royaumoney.db'}"
     # First date downloaded on a full backfill. Five years of z-score window
     # plus margin for 6-month changes and regime history.
-    backfill_start: date = date(2000, 1, 1)
+    backfill_start: date = date(1990, 1, 1)
 
     scheduler_enabled: bool = True
     scheduler_timezone: str = "Europe/Rome"

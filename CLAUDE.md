@@ -43,5 +43,11 @@ Leggi sempre **`PIANO_ROYAUMONEY_JARVIS.md`**: è il piano del progetto (visione
 - Nei widget TradingView i simboli TVC e i future CME/ICE non sono concessi: usare CFD, FRED o altri fornitori (tabella in `docs/cabina.md`). Verificare ogni simbolo nuovo aprendolo.
 - Online privato: Vercel + `CABINA_PASSWORD` (`frontend/src/middleware.ts`).
 
+## Regime & Quality Engine (Dalio × Buffett)
+- `backend/app/rqe/`: `config.py` (tutte le scelte), `macro.py` (crescita/inflazione, probabilità dei 4 regimi, storia point-in-time con le revisioni), `assets.py` (rendimenti mensili con proxy pre-ETF), `allocation.py` (risk parity + tilt ±10 pt), `backtest.py` (dal 2000, contro 60/40), `service.py` (cache della storia, snapshot, `rqe.json`).
+- Dashboard `/regime` (`frontend/src/app/regime/page.tsx`), dati `frontend/public/rqe/rqe.json` (`python -m app.cli rqe`). Metodo e risultati in `docs/regime-quality-engine.md`.
+- Screener Buffett: regole in config, codice da fare quando c'è la chiave FMP. Niente backtest dello screener (bilanci non point-in-time).
+- Storico FRED dal 1990 (`backfill_start`). `store.load_versions` + `as_known_on` danno una serie come era nota a una data; `load_frame(..., availability="first")` usa la data di prima pubblicazione.
+
 ## Comandi
 `make setup` · `make verify` · `make ingest` · `make health` · `make analisi [AS_OF=…]` · `make previsioni` · `make previsione ID=…` · `make track-record` · `python -m app.cli cabina` · `make dev` · `make test` · `make lint`

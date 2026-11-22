@@ -175,3 +175,13 @@ async def jarvis_ws(ws: WebSocket) -> None:
                 await ws.send_json({"tipo": "errore", "messaggio": str(e)})
     except WebSocketDisconnect:
         return
+
+
+# ---- Regime & Quality Engine -----------------------------------------------------------
+@app.get("/rqe")
+def rqe_snapshot() -> dict:
+    """Dalio regime with probabilities, All Weather allocation with tilt, backtest, alerts."""
+    from app.rqe import service as rqe
+
+    with session_scope() as s:
+        return rqe.snapshot(s)
